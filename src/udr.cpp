@@ -123,8 +123,8 @@ int main(int argc, char* argv[]) {
         string sep = " ";
         char** rsync_args = &argv[rsync_arg_idx];
         int rsync_argc = argc - rsync_arg_idx;
-        char hex_pp[HEX_PASSPHRASE_SIZE];
-        unsigned char passphrase[PASSPHRASE_SIZE];
+        char hex_pp[HEX_PASSPHRASE_SIZE+1];
+        unsigned char passphrase[PASSPHRASE_SIZE+1];
 
         if (curr_options.encryption) {
             if (curr_options.verbose)
@@ -134,15 +134,17 @@ int main(int argc, char* argv[]) {
                 fprintf(stderr, "UDR ERROR: could not read from key_file %s\n", curr_options.key_filename);
                 exit(EXIT_FAILURE);
             }
-            fscanf(key_file, "%s", hex_pp);
+            fgets(hex_pp, HEX_PASSPHRASE_SIZE+1, key_file);
             fclose(key_file);
             remove(curr_options.key_filename);
 
-            for (unsigned int i = 0; i < strlen(hex_pp); i = i + 2) {
+            unsigned int i;
+            for (i = 0; i < strlen(hex_pp); i = i + 2) {
                 unsigned int c;
                 sscanf(&hex_pp[i], "%02x", &c);
                 passphrase[i / 2] = (unsigned char) c;
             }
+            passphrase[i / 2] = '\0';
         }
 
         snprintf(curr_options.host, PATH_MAX, "%s", argv[rsync_arg_idx - 1]);

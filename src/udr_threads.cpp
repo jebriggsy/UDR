@@ -456,8 +456,9 @@ int run_receiver(UDR_Options * udr_options) {
 	return 0;
     }
 
-    unsigned char rand_pp[PASSPHRASE_SIZE];
+    unsigned char rand_pp[PASSPHRASE_SIZE+1];
     int success = RAND_bytes((unsigned char *) rand_pp, PASSPHRASE_SIZE);
+    rand_pp[PASSPHRASE_SIZE] = '\0';
 
     //stdout port number and password -- to send back to the client
     printf("%s ", receiver_port);
