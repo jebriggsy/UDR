@@ -70,7 +70,7 @@ void set_default_udr_options(UDR_Options * options) {
     options->version[0] = '\0';
     options->server_dir[0] = '\0';
     options->server_config[0] = '\0';
-    snprintf(options->server_port, PATH_MAX, "%s", "9000");
+    snprintf(options->server_port, NI_MAXSERV, "%s", "9000");
 
     options->specify_ip = NULL;
 

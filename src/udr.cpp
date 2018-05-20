@@ -177,7 +177,7 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "%s udr_cmd %s\n", curr_options.which_process, udr_cmd);
         }
 
-        int line_size = NI_MAXSERV + PASSPHRASE_SIZE * 2 + 1;
+        int line_size = NI_MAXSERV + PASSPHRASE_SIZE * 2 + 2;
         char * line = (char*) malloc(line_size);
         line[0] = '\0';
 
@@ -235,7 +235,8 @@ int main(int argc, char* argv[]) {
 
             fork_execvp(curr_options.ssh_program, ssh_argv, &sshparent_to_child, &sshchild_to_parent);
 
-            nbytes = read(sshchild_to_parent, line, line_size);
+            nbytes = read(sshchild_to_parent, line, line_size-1);
+            line[nbytes] = '\0';
 
             if (curr_options.verbose) {
                 fprintf(stderr, "%s Received string: %s\n", curr_options.which_process, line);
