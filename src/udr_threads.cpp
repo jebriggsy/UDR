@@ -333,13 +333,13 @@ int run_sender(UDR_Options * udr_options, unsigned char * passphrase, const char
     udt_to_sender.is_complete = false;
 
     if(udr_options->encryption){
-	crypto encrypt(EVP_ENCRYPT, PASSPHRASE_SIZE, (unsigned char *) passphrase,
-        udr_options->encryption_type);
-	crypto decrypt(EVP_DECRYPT, PASSPHRASE_SIZE, (unsigned char *) passphrase,
-        udr_options->encryption_type);
+        crypto *encrypt = new crypto(EVP_ENCRYPT, PASSPHRASE_SIZE, (unsigned char *) passphrase,
+            udr_options->encryption_type);
+        crypto *decrypt = new crypto(EVP_DECRYPT, PASSPHRASE_SIZE, (unsigned char *) passphrase,
+            udr_options->encryption_type);
 	// free_key(passphrase);
-	sender_to_udt.crypt = &encrypt;
-	udt_to_sender.crypt = &decrypt;
+	sender_to_udt.crypt = encrypt;
+	udt_to_sender.crypt = decrypt;
     }
     else{
 	sender_to_udt.crypt = NULL;
@@ -364,6 +364,10 @@ int run_sender(UDR_Options * udr_options, unsigned char * passphrase, const char
     if(udr_options->verbose)
         fprintf(stderr, "[udr sender] joined on sender_to_udt_thread %d\n", rc2);
 
+    if(udr_options->encryption){
+	delete sender_to_udt.crypt;
+	delete udt_to_sender.crypt;
+    }
     UDT::close(client);
     UDT::cleanup();
 
@@ -562,12 +566,12 @@ int run_receiver(UDR_Options * udr_options) {
     udt_to_recv.is_complete = false;
 
     if(udr_options->encryption){
-	crypto encrypt(EVP_ENCRYPT, PASSPHRASE_SIZE, rand_pp,
+	crypto *encrypt = new crypto(EVP_ENCRYPT, PASSPHRASE_SIZE, rand_pp,
         udr_options->encryption_type);
-	crypto decrypt(EVP_DECRYPT, PASSPHRASE_SIZE, rand_pp,
+	crypto *decrypt = new crypto(EVP_DECRYPT, PASSPHRASE_SIZE, rand_pp,
         udr_options->encryption_type);
-	recv_to_udt.crypt = &encrypt;
-	udt_to_recv.crypt = &decrypt;
+	recv_to_udt.crypt = encrypt;
+	udt_to_recv.crypt = decrypt;
     }
     else{
 	recv_to_udt.crypt = NULL;
@@ -642,6 +646,11 @@ int run_receiver(UDR_Options * udr_options) {
 
     if(udr_options->verbose){
 	fprintf(stderr, "[udr receiver] Closed recver\n");
+    }
+
+    if(udr_options->encryption){
+	delete recv_to_udt.crypt;
+	delete udt_to_recv.crypt;
     }
 
 
