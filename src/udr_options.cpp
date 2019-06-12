@@ -38,6 +38,7 @@ void usage() {
     fprintf(stderr, "\t[-b port] Remote UDT port\n");
     fprintf(stderr, "\t[-c path] Remote UDR executable\n");
     fprintf(stderr, "\t[-P ssh-port] Remote port to connect to via SSH\n");
+    fprintf(stderr, "\t[-r max-bw] Max bandwidth to utilize (Mbps)\n");
     exit(1);
 }
 
@@ -46,6 +47,7 @@ void set_default_udr_options(UDR_Options * options) {
     options->start_port = 9000;
     options->end_port = 9100;
     options->timeout = 15;
+    options->bandwidthcap = 0;
 
     options->tflag = false;
     options->sflag = false;
@@ -99,6 +101,7 @@ int get_udr_options(UDR_Options * udr_options, int argc, char * argv[], int rsyn
         {"keydir", required_argument, NULL, 'k'},
         {"remote-udr", required_argument, NULL, 'c'},
         {"server-port", required_argument, NULL, 'o'},
+        {"max-bw", required_argument, NULL, 'r'},
         {"rsync-uid", required_argument, NULL, 0},
         {"rsync-gid", required_argument, NULL, 0},
         {"config", required_argument, NULL, 0},
@@ -107,7 +110,7 @@ int get_udr_options(UDR_Options * udr_options, int argc, char * argv[], int rsyn
 
     int option_index = 0;
 
-    const char* opts = "P:i:tlvxa:b:s:d:h:p:c:k:o:n::";
+    const char* opts = "P:i:tlvxa:b:s:d:h:p:c:k:o:r:n::";
 
     while ((ch = getopt_long(rsync_arg_idx, argv, opts, long_options, &option_index)) != -1) {
         switch (ch) {
@@ -155,6 +158,9 @@ int get_udr_options(UDR_Options * udr_options, int argc, char * argv[], int rsyn
             break;
         case 'o':
             snprintf(udr_options->server_port, NI_MAXSERV, "%s", optarg);
+            break;
+        case 'r':
+            udr_options->bandwidthcap = atoi(optarg);
             break;
 
         case 'i':

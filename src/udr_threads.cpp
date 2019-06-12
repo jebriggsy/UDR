@@ -286,6 +286,11 @@ int run_sender(UDR_Options * udr_options, unsigned char * passphrase, const char
 	return 1;
     }
 
+    if (udr_options->bandwidthcap > 0) {
+        uint64_t opt = udr_options->bandwidthcap;
+        UDT::setsockopt(client, 0, UDT_MAXBW, &opt, sizeof(opt));
+    }
+
     if (UDT::ERROR == UDT::connect(client, peer->ai_addr, peer->ai_addrlen)) {
 	cerr << "[udr sender] connect: " << UDT::getlasterror().getErrorMessage() << endl;
 	return 1;
