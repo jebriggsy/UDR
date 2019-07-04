@@ -30,16 +30,18 @@ UDR must be on the client and server machines that data will be transferred betw
 
 ### UDR options:
 
-- `[-a starting port number]` default is 9000
-- `[-b ending port number]` default is 9100
-- `[-n aes-128 | aes-192 | aes-256 | bf | des-ede3]` turns on encryption, if crypto is not specified aes-128 is the default
-- `[-p path]` local path for the .udr_key file used for encryption, default is the current directory
-- `[-c remote udr location]` by default udr assumes that udr is in your path on the remote system, here you can specify the location explicitly
-- `[-o server port]` port to access a UDR server, default is 9000
-- `[-v]` verbose mode, typically for debugging purposes
-- `[--version]` print out the version
-- `[-d timeout]` specify duration in seconds in which to kill remaining threads if no data is transfered after connected, default is 15s
+- `[-a start port] UDT port
+- `[-b end port] UDT port
+- `[-c path] Explicit path to remote UDR executable, if not in user path
+- `[-d timeout] Data transfer timeout in seconds, default is 15s
 - `[-i ip]` specify the interface by ip that the remote process will bind to
+- `[-n aes-128 | aes-192 | aes-256 | bf | des-ede3]` turns on encryption, if crypto is not specified aes-128 is the default
+- `[-o server port] Port to access a UDR server, default 9000
+- `[-p path]` local path for the .udr_key file used for encryption, default is the current directory
+- `[-P ssh-port] Remote port to connect to via SSH
+- `[-r max-bw] Maximum bandwidth to utilize (Mbps)
+- `[-v] Run UDR with verbosity
+- `[--version]` print out the version
 
 The rsync [rsync options] should take any of the standard rsync options, except the -e/--rsh flag which how UDR interfaces with rsync.
 
