@@ -62,6 +62,12 @@ char * get_udr_cmd(UDR_Options * udr_options) {
 	strcat(udr_args, specify_ip_arg);
     }
 
+    if (udr_options->bandwidthcap > 0){
+	char specify_maxrate_arg[PATH_MAX];
+	sprintf(specify_maxrate_arg, " -r %d", udr_options->bandwidthcap);
+	strcat(udr_args, specify_maxrate_arg);
+    }
+
     if (udr_options->server_connect) {
         sprintf(udr_args, "%s %s", udr_args, "-t rsync");
     }
@@ -313,6 +319,13 @@ int main(int argc, char* argv[]) {
 
         if (curr_options.verbose)
             strcat(udr_rsync_args1, "-v ");
+
+        if (curr_options.bandwidthcap > 0){
+            char rate_arg[64];
+            snprintf(rate_arg, sizeof(rate_arg)-1, "-r %d", curr_options.bandwidthcap);
+            strcat(udr_rsync_args1, rate_arg);
+            strcat(udr_rsync_args1, " ");
+        }
 
         strcat(udr_rsync_args1, "-s");
 
