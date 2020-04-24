@@ -1,44 +1,44 @@
 C++ = g++
 
 ifndef os
-   os = LINUX
+	os = LINUX
 endif
 
 ifndef arch
-   arch = AMD64
+	arch = AMD64
 endif
 
 CCFLAGS = -Wall -D$(os) -I../udtproject/udt4/src -finline-functions -g
 
 ifeq ($(arch), IA32)
-   CCFLAGS += -DIA32 #-mcpu=pentiumpro -march=pentiumpro -mmmx -msse
+	CCFLAGS += -DIA32 #-mcpu=pentiumpro -march=pentiumpro -mmmx -msse
 endif
 
 ifeq ($(arch), POWERPC)
-   CCFLAGS += -mcpu=powerpc
+	CCFLAGS += -mcpu=powerpc
 endif
 
 ifeq ($(arch), IA64)
-   CCFLAGS += -DIA64
+	CCFLAGS += -DIA64
 endif
 
 ifeq ($(arch), SPARC)
-   CCFLAGS += -DSPARC
+	CCFLAGS += -DSPARC
 endif
 
 LDFLAGS = -L../src ../udtproject/udt4/src/libudt.a -lstdc++ -lpthread -lm -lssl -lcrypto
 
 ifeq ($(os), UNIX)
-   LDFLAGS += -lsocket
+	LDFLAGS += -lsocket
 endif
 
 ifeq ($(os), OSX)
-   LDFLAGS += -I/usr/local/opt/openssl/include -L/usr/local/opt/openssl/lib
-   CCFLAGS += -I/usr/local/opt/openssl/include
+	LDFLAGS += -I/usr/local/opt/openssl/include -L/usr/local/opt/openssl/lib
+	CCFLAGS += -I/usr/local/opt/openssl/include
 endif
 
 ifeq ($(os), SUNOS)
-   LDFLAGS += -lrt -lsocket
+	LDFLAGS += -lrt -lsocket
 endif
 
 DIR = $(shell pwd)
