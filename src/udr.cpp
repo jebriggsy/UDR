@@ -200,38 +200,19 @@ int main(int argc, char* argv[]) {
             // side!
             int sshchild_to_parent, sshparent_to_child;
 
-            int ssh_argc;
-            if (strlen(curr_options.username) != 0)
-                ssh_argc = 8;
-            else
-                ssh_argc = 7;
-
+            // todo: allow user to specify ssh program and args
             std::vector<std::string> args;
-            char ** ssh_argv;
-            ssh_argv = (char**) malloc(sizeof (char *) * ssh_argc);
-            int ssh_idx = 0;
-
-            ssh_argv[ssh_idx++] = curr_options.ssh_program;
             args.push_back(curr_options.ssh_program);
 
             // Add ssh port
-            char ssh_port_str[15];
-            snprintf(ssh_port_str, 15, "%d", curr_options.ssh_port);
-            ssh_argv[ssh_idx++] = (char*)"-p";
-            ssh_argv[ssh_idx++] = ssh_port_str;
             args.push_back("-p");
             args.push_back(n_to_string(curr_options.ssh_port));
 
             if (strlen(curr_options.username) != 0) {
-                ssh_argv[ssh_idx++] = (char*)"-l";
-                ssh_argv[ssh_idx++] = curr_options.username;
                 args.push_back("-l");
                 args.push_back(curr_options.username);
             }
 
-            ssh_argv[ssh_idx++] = curr_options.host;
-            ssh_argv[ssh_idx++] = udr_cmd;
-            ssh_argv[ssh_idx++] = NULL;
             args.push_back(curr_options.host);
             args.push_back(udr_cmd);
 
