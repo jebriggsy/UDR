@@ -19,6 +19,20 @@ and limitations under the License.
 #ifndef UDR_PROCESSES_H
 #define UDR_PROCESSES_H
 
+#include <sys/types.h>
+#include <string>
+#include <sstream>
+#include <vector>
+
+template <typename T>
+std::string n_to_string ( T Number )
+{
+    std::ostringstream ss;
+    ss << Number;
+    return ss.str();
+}
+
+pid_t fork_exec(const std::vector<std::string> &args, int &p_to_c, int &c_to_p);
 pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp);
 int get_server_connection(char * host, char * port, char * udr_cmd, char * line, int line_size);
         

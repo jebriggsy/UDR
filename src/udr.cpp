@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
         //get the host and username first
         get_host_username(&curr_options, argc, argv, rsync_arg_idx);
 
-    char * udr_cmd = get_udr_cmd(&curr_options);
+        char * udr_cmd = get_udr_cmd(&curr_options);
         if (curr_options.verbose){
             fprintf(stderr, "%s udr_cmd %s\n", curr_options.which_process, udr_cmd);
         }
@@ -196,6 +196,8 @@ int main(int argc, char* argv[]) {
         }
         /* If not try ssh */
         else {
+            // We are starting the ssh child process to start udr executable on the other
+            // side!
             int sshchild_to_parent, sshparent_to_child;
 
             int ssh_argc;
@@ -204,52 +206,60 @@ int main(int argc, char* argv[]) {
             else
                 ssh_argc = 7;
 
+            std::vector<std::string> args;
             char ** ssh_argv;
             ssh_argv = (char**) malloc(sizeof (char *) * ssh_argc);
             int ssh_idx = 0;
 
             ssh_argv[ssh_idx++] = curr_options.ssh_program;
+            args.push_back(curr_options.ssh_program);
 
             // Add ssh port
             char ssh_port_str[15];
             snprintf(ssh_port_str, 15, "%d", curr_options.ssh_port);
             ssh_argv[ssh_idx++] = (char*)"-p";
             ssh_argv[ssh_idx++] = ssh_port_str;
+            args.push_back("-p");
+            args.push_back(n_to_string(curr_options.ssh_port));
 
             if (strlen(curr_options.username) != 0) {
                 ssh_argv[ssh_idx++] = (char*)"-l";
                 ssh_argv[ssh_idx++] = curr_options.username;
+                args.push_back("-l");
+                args.push_back(curr_options.username);
             }
 
             ssh_argv[ssh_idx++] = curr_options.host;
             ssh_argv[ssh_idx++] = udr_cmd;
             ssh_argv[ssh_idx++] = NULL;
+            args.push_back(curr_options.host);
+            args.push_back(udr_cmd);
 
             if (curr_options.verbose) {
                 fprintf(stderr, "ssh_program %s\n", curr_options.ssh_program);
-                for (int i = 0; i < ssh_idx; i++) {
-                    fprintf(stderr, "ssh_argv[%d]: %s\n", i, ssh_argv[i]);
+                for (unsigned i = 0; i < args.size(); i++) {
+                    fprintf(stderr, "ssh_argv[%d]: %s\n", i, args[i].c_str());
                 }
             }
 
-            fork_execvp(curr_options.ssh_program, ssh_argv, &sshparent_to_child, &sshchild_to_parent);
+            fork_exec(args, sshparent_to_child, sshchild_to_parent);
 
             // read one line from ssh
-        ssize_t nbytes = 0;
-        for(;;) {
-        ssize_t bytes = read(sshchild_to_parent, line+nbytes, 1);
-        if (bytes >= 0) {
-            nbytes += bytes;
-            if (bytes == 0 || line[nbytes-1] == '\n')
-            break;
-        } else {
-            if (errno == EINTR)
-            continue;
-            perror("read from ssh");
-            exit(EXIT_FAILURE);
-        }
-        }
-        line[nbytes] = '\0';
+            ssize_t nbytes = 0;
+            for(;;) {
+                ssize_t bytes = read(sshchild_to_parent, line+nbytes, 1);
+                if (bytes >= 0) {
+                    nbytes += bytes;
+                    if (bytes == 0 || line[nbytes-1] == '\n')
+                    break;
+                } else {
+                    if (errno == EINTR)
+                    continue;
+                    perror("read from ssh");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            line[nbytes] = '\0';
 
             if (curr_options.verbose) {
                 fprintf(stderr, "%s Received string: %s\n", curr_options.which_process, line);
@@ -326,10 +336,10 @@ int main(int argc, char* argv[]) {
 
         const char * udr_rsync_args2 = "-p";
 
-    int length = snprintf(0, 0, "%s %s %s %s %s", curr_options.udr_program_src, udr_rsync_args1, curr_options.port_num, udr_rsync_args2, curr_options.key_filename);
-    char *buf = (char*)malloc(length + 1);
-        snprintf(buf, length + 1, "%s %s %s %s %s", curr_options.udr_program_src, udr_rsync_args1, curr_options.port_num, udr_rsync_args2, curr_options.key_filename);
-    rsync_argv[rsync_idx++] = buf;
+        int length = snprintf(0, 0, "%s %s %s %s %s", curr_options.udr_program_src, udr_rsync_args1, curr_options.port_num, udr_rsync_args2, curr_options.key_filename);
+        char *buf = (char*)malloc(length + 1);
+            snprintf(buf, length + 1, "%s %s %s %s %s", curr_options.udr_program_src, udr_rsync_args1, curr_options.port_num, udr_rsync_args2, curr_options.key_filename);
+        rsync_argv[rsync_idx++] = buf;
 
         //fprintf(stderr, "first_source_idx: %d\n", first_source_idx);
         for (int i = rsync_arg_idx + 1; i < argc; i++) {
@@ -347,28 +357,28 @@ int main(int argc, char* argv[]) {
         char rsync_out_buf[buf_size];
 
         //This prints out the stdout from rsync to stdout
-    for(;;) {
-            ssize_t bytes_read = read(child_to_parent, rsync_out_buf, buf_size);
-        if (bytes_read == 0)
-        break; // EOF
-        if (bytes_read < 0) {
-        if (errno == EINTR)
-            continue;
-        perror("read from rsync process");
-        exit(EXIT_FAILURE);
-        }
-        ssize_t bytes_written = 0;
-        while (bytes_written < bytes_read) {
-        ssize_t wrote = write(STDOUT_FILENO, rsync_out_buf+bytes_written, bytes_read-bytes_written);
-            if (wrote < 0) {
+        for(;;) {
+                ssize_t bytes_read = read(child_to_parent, rsync_out_buf, buf_size);
+            if (bytes_read == 0)
+            break; // EOF
+            if (bytes_read < 0) {
             if (errno == EINTR)
-            continue;
-            perror("write to stdout");
+                continue;
+            perror("read from rsync process");
             exit(EXIT_FAILURE);
+            }
+            ssize_t bytes_written = 0;
+            while (bytes_written < bytes_read) {
+            ssize_t wrote = write(STDOUT_FILENO, rsync_out_buf+bytes_written, bytes_read-bytes_written);
+                if (wrote < 0) {
+                if (errno == EINTR)
+                continue;
+                perror("write to stdout");
+                exit(EXIT_FAILURE);
+            }
+            bytes_written += wrote;
+            }
         }
-        bytes_written += wrote;
-        }
-    }
 
         int rsync_exit_status;
 

@@ -16,6 +16,9 @@ See the License for the specific language governing permissions
 and limitations under the License.
 *****************************************************************************/
 
+#include "udr_util.h"
+#include <stdlib.h>
+
 #include <unistd.h>
 #include <cstdlib>
 #include <cstring>
@@ -32,7 +35,17 @@ and limitations under the License.
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <signal.h>
-#include "udr_util.h"
+
+pid_t fork_exec(const std::vector<std::string> &args, int &p_to_c, int &c_to_p)
+{
+    char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
+    for(unsigned i=0; i<args.size(); i++)
+        argv[i] = (char*)args[i].c_str();
+    argv[args.size()] = 0;
+    pid_t pid = fork_execvp(argv[0], argv, &p_to_c, &c_to_p);
+    free(argv);
+    return pid;
+}
 
 pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp){
     pid_t pid;
