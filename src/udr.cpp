@@ -196,9 +196,7 @@ int main(int argc, char* argv[]) {
         }
         /* If not try ssh */
         else {
-            char ssh_port_str[15];
             int sshchild_to_parent, sshparent_to_child;
-            int nbytes;
 
             int ssh_argc;
             if (strlen(curr_options.username) != 0)
@@ -213,12 +211,13 @@ int main(int argc, char* argv[]) {
             ssh_argv[ssh_idx++] = curr_options.ssh_program;
 
             // Add ssh port
-            sprintf(ssh_port_str, "%d", curr_options.ssh_port);
-            ssh_argv[ssh_idx++] = "-p";
+            char ssh_port_str[15];
+            snprintf(ssh_port_str, 15, "%d", curr_options.ssh_port);
+            ssh_argv[ssh_idx++] = (char*)"-p";
             ssh_argv[ssh_idx++] = ssh_port_str;
 
             if (strlen(curr_options.username) != 0) {
-                ssh_argv[ssh_idx++] = "-l";
+                ssh_argv[ssh_idx++] = (char*)"-l";
                 ssh_argv[ssh_idx++] = curr_options.username;
             }
 
@@ -235,7 +234,22 @@ int main(int argc, char* argv[]) {
 
             fork_execvp(curr_options.ssh_program, ssh_argv, &sshparent_to_child, &sshchild_to_parent);
 
-            nbytes = read(sshchild_to_parent, line, line_size);
+            // read one line from ssh
+	    ssize_t nbytes = 0;
+	    for(;;) {
+		ssize_t bytes = read(sshchild_to_parent, line+nbytes, 1);
+		if (bytes >= 0) {
+		    nbytes += bytes;
+		    if (bytes == 0 || line[nbytes-1] == '\n')
+			break;
+		} else {
+		    if (errno == EINTR)
+			continue;
+		    perror("read from ssh");
+		    exit(EXIT_FAILURE);
+		}
+	    }
+	    line[nbytes] = '\0';
 
             if (curr_options.verbose) {
                 fprintf(stderr, "%s Received string: %s\n", curr_options.which_process, line);
@@ -263,9 +277,9 @@ int main(int argc, char* argv[]) {
 
         if (curr_options.encryption) {
             FILE *key_file = fopen(curr_options.key_filename, "w");
-            int succ = chmod(curr_options.key_filename, S_IRUSR | S_IWUSR);
+            int fail = chmod(curr_options.key_filename, S_IRUSR | S_IWUSR);
 
-            if (key_file == NULL) {
+            if (key_file == NULL || fail) {
                 fprintf(stderr, "UDR ERROR: could not write key file: %s\n", curr_options.key_filename);
                 exit(EXIT_FAILURE);
             }
@@ -287,16 +301,13 @@ int main(int argc, char* argv[]) {
         rsync_argv = (char**) malloc(sizeof (char *) * rsync_argc);
 
         int rsync_idx = 0;
-        rsync_argv[rsync_idx] = (char*) malloc(strlen(argv[rsync_arg_idx]) + 1);
-        //ok because just malloc'd based on it
-        strcpy(rsync_argv[rsync_idx], argv[rsync_arg_idx]);
-        rsync_idx++;
+        rsync_argv[rsync_idx++] = strdup(argv[rsync_arg_idx]);
 
-        rsync_argv[rsync_idx++] = "--blocking-io";
+        rsync_argv[rsync_idx++] = (char*)"--blocking-io";
 
         //rsync_argv[rsync_idx++] = curr_options.rsync_timeout;
 
-        rsync_argv[rsync_idx++] = "-e";
+        rsync_argv[rsync_idx++] = (char*)"-e";
 
         char udr_rsync_args1[100];
 
@@ -315,16 +326,14 @@ int main(int argc, char* argv[]) {
 
         const char * udr_rsync_args2 = "-p";
 
-        rsync_argv[rsync_idx] = (char*) malloc(strlen(curr_options.udr_program_src) + strlen(udr_rsync_args1) + strlen(curr_options.port_num) + strlen(udr_rsync_args2) + strlen(curr_options.key_filename) + 6);
-        sprintf(rsync_argv[rsync_idx], "%s %s %s %s %s", curr_options.udr_program_src, udr_rsync_args1, curr_options.port_num, udr_rsync_args2, curr_options.key_filename);
-
-        rsync_idx++;
+	int length = snprintf(0, 0, "%s %s %s %s %s", curr_options.udr_program_src, udr_rsync_args1, curr_options.port_num, udr_rsync_args2, curr_options.key_filename);
+	char *buf = (char*)malloc(length + 1);
+        snprintf(buf, length + 1, "%s %s %s %s %s", curr_options.udr_program_src, udr_rsync_args1, curr_options.port_num, udr_rsync_args2, curr_options.key_filename);
+	rsync_argv[rsync_idx++] = buf;
 
         //fprintf(stderr, "first_source_idx: %d\n", first_source_idx);
         for (int i = rsync_arg_idx + 1; i < argc; i++) {
-            rsync_argv[rsync_idx] = (char*) malloc(strlen(argv[i]) + 1);
-            rsync_argv[rsync_idx] = argv[i];
-            rsync_idx++;
+            rsync_argv[rsync_idx++] = strdup(argv[i]);
         }
 
         rsync_argv[rsync_idx] = NULL;
@@ -334,14 +343,32 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "%s rsync pid: %d\n", curr_options.which_process, local_rsync_pid);
 
         //at this point this process should wait for the rsync process to end
-        int buf_size = 4096;
+        const int buf_size = 4096;
         char rsync_out_buf[buf_size];
-        int bytes_read, bytes_written;
 
         //This prints out the stdout from rsync to stdout
-        while ((bytes_read = read(child_to_parent, rsync_out_buf, buf_size)) > 0) {
-            bytes_written = write(STDOUT_FILENO, rsync_out_buf, bytes_read);
-        }
+	for(;;) {
+            ssize_t bytes_read = read(child_to_parent, rsync_out_buf, buf_size);
+	    if (bytes_read == 0)
+		break; // EOF
+	    if (bytes_read < 0) {
+		if (errno == EINTR)
+		    continue;
+		perror("read from rsync process");
+		exit(EXIT_FAILURE);
+	    }
+	    ssize_t bytes_written = 0;
+	    while (bytes_written < bytes_read) {
+		ssize_t wrote = write(STDOUT_FILENO, rsync_out_buf+bytes_written, bytes_read-bytes_written);
+	        if (wrote < 0) {
+		    if (errno == EINTR)
+			continue;
+		    perror("write to stdout");
+		    exit(EXIT_FAILURE);
+		}
+		bytes_written += wrote;
+	    }
+	}
 
         int rsync_exit_status;
 
