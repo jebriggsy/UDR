@@ -289,12 +289,12 @@ int main(int argc, char* argv[]) {
         udr_args args;
 
         args.push_back(argv[rsync_arg_idx]);
-	// todo: make udr work with non-blocking io in its rsh role
-	args.push_back("--blocking-io");
+	    // todo: make udr work with non-blocking io in its rsh role
+	    args.push_back("--blocking-io");
 
-	// construct the rsh argument to rsync
+	    // construct the rsh argument to rsync
         udr_args rsh_args;
-	rsh_args.push_back(curr_options.udr_program_src);
+	    rsh_args.push_back(curr_options.udr_program_src);
         if (curr_options.verbose)
             rsh_args.push_back("-v");
 
@@ -302,20 +302,20 @@ int main(int argc, char* argv[]) {
         rsh_args.push_back("-s");
         rsh_args.push_back(n_to_string(curr_options.port_num));
         
-	if (strlen(curr_options.encryption_type)) {
-	    rsh_args.push_back("-n");
-	    rsh_args.push_back(curr_options.encryption_type);
-	}
+	    if (strlen(curr_options.encryption_type)) {
+    	    rsh_args.push_back("-n");
+    	    rsh_args.push_back(curr_options.encryption_type);
+        }
         if (strlen(curr_options.key_filename)) {
             rsh_args.push_back("-p");
             rsh_args.push_back(curr_options.key_filename);
         }
 	
-	// add the rsh arg to rsync:
+	    // add the rsh arg to rsync:
         args.push_back("-e");
         args.push_back(args_join(rsh_args, true));
 
-	// add remaining rsync args from the command line
+	    // add remaining rsync args from the command line
         for (int i = rsync_arg_idx + 1; i < argc; i++)
             args.push_back(argv[i]);
 
