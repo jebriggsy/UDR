@@ -283,8 +283,6 @@ int main(int argc, char* argv[]) {
         if ((ptr = strchr(curr_options.port_num, '\n')) != NULL)
             *ptr = '\0';
 
-        int parent_to_child, child_to_parent;
-
         //parse the rsync options
         udr_args args;
 
@@ -324,40 +322,12 @@ int main(int argc, char* argv[]) {
                 fprintf(stderr, "rsync_args[%d]: %s\n", i, args[i].c_str());
             }
         }
-        pid_t local_rsync_pid = fork_exec(args, parent_to_child, child_to_parent);
+        pid_t local_rsync_pid = fork_exec(args);
         if (curr_options.verbose)
             fprintf(stderr, "%s rsync pid: %d\n", curr_options.which_process, local_rsync_pid);
 
         //at this point this process should wait for the rsync process to end
-        const int buf_size = 4096;
-        char rsync_out_buf[buf_size];
-
-        //This prints out the stdout from rsync to stdout
-        for(;;) {
-                ssize_t bytes_read = read(child_to_parent, rsync_out_buf, buf_size);
-            if (bytes_read == 0)
-            break; // EOF
-            if (bytes_read < 0) {
-            if (errno == EINTR)
-                continue;
-            perror("read from rsync process");
-            exit(EXIT_FAILURE);
-            }
-            ssize_t bytes_written = 0;
-            while (bytes_written < bytes_read) {
-            ssize_t wrote = write(STDOUT_FILENO, rsync_out_buf+bytes_written, bytes_read-bytes_written);
-                if (wrote < 0) {
-                if (errno == EINTR)
-                continue;
-                perror("write to stdout");
-                exit(EXIT_FAILURE);
-            }
-            bytes_written += wrote;
-            }
-        }
-
         int rsync_exit_status;
-
         do {
             pid_t w = waitpid(local_rsync_pid, &rsync_exit_status, WUNTRACED | WCONTINUED);
             if (w == -1) {

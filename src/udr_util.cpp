@@ -123,10 +123,14 @@ pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp){
     }
     else{
         //parent
-        close(parent_to_child[0]);
-        *ptc = parent_to_child[1];
-        close(child_to_parent[1]);
-        *ctp = child_to_parent[0];
+        if(ptc) {
+            close(parent_to_child[0]);
+            *ptc = parent_to_child[1];
+        }
+        if (ctp) {
+            close(child_to_parent[1]);
+            *ctp = child_to_parent[0];
+        }
     }
     return pid;
 }
