@@ -286,50 +286,45 @@ int main(int argc, char* argv[]) {
         int parent_to_child, child_to_parent;
 
         //parse the rsync options
-        char ** rsync_argv;
+        udr_args args;
 
-        int rsync_argc = argc - rsync_arg_idx + 5; //need more spots
-        rsync_argv = (char**) malloc(sizeof (char *) * rsync_argc);
+        args.push_back(argv[rsync_arg_idx]);
+	// todo: make udr work with non-blocking io in its rsh role
+	args.push_back("--blocking-io");
 
-        int rsync_idx = 0;
-        rsync_argv[rsync_idx++] = strdup(argv[rsync_arg_idx]);
-
-        rsync_argv[rsync_idx++] = (char*)"--blocking-io";
-
-        //rsync_argv[rsync_idx++] = curr_options.rsync_timeout;
-
-        rsync_argv[rsync_idx++] = (char*)"-e";
-
-        char udr_rsync_args1[100];
-
-        if (curr_options.encryption) {
-            strcpy(udr_rsync_args1, "-n ");
-            strcat(udr_rsync_args1, curr_options.encryption_type);
-            strcat(udr_rsync_args1, " ");
-        }
-        else
-            udr_rsync_args1[0] = '\0';
-
+	// construct the rsh argument to rsync
+        udr_args rsh_args;
+	rsh_args.push_back(curr_options.udr_program_src);
         if (curr_options.verbose)
-            strcat(udr_rsync_args1, "-v ");
+            rsh_args.push_back("-v");
 
-        strcat(udr_rsync_args1, "-s");
-
-        const char * udr_rsync_args2 = "-p";
-
-        int length = snprintf(0, 0, "%s %s %s %s %s", curr_options.udr_program_src, udr_rsync_args1, curr_options.port_num, udr_rsync_args2, curr_options.key_filename);
-        char *buf = (char*)malloc(length + 1);
-            snprintf(buf, length + 1, "%s %s %s %s %s", curr_options.udr_program_src, udr_rsync_args1, curr_options.port_num, udr_rsync_args2, curr_options.key_filename);
-        rsync_argv[rsync_idx++] = buf;
-
-        //fprintf(stderr, "first_source_idx: %d\n", first_source_idx);
-        for (int i = rsync_arg_idx + 1; i < argc; i++) {
-            rsync_argv[rsync_idx++] = strdup(argv[i]);
+        // 'sender' part of rsh, connect to remote udt
+        rsh_args.push_back("-s");
+        rsh_args.push_back(n_to_string(curr_options.port_num));
+        
+	if (strlen(curr_options.encryption_type)) {
+	    rsh_args.push_back("-n");
+	    rsh_args.push_back(curr_options.encryption_type);
+	}
+        if (strlen(curr_options.key_filename)) {
+            rsh_args.push_back("-p");
+            rsh_args.push_back(curr_options.key_filename);
         }
+	
+	// add the rsh arg to rsync:
+        args.push_back("-e");
+        args.push_back(args_join(rsh_args, true));
 
-        rsync_argv[rsync_idx] = NULL;
+	// add remaining rsync args from the command line
+        for (int i = rsync_arg_idx + 1; i < argc; i++)
+            args.push_back(argv[i]);
 
-        pid_t local_rsync_pid = fork_execvp(curr_options.rsync_program, rsync_argv, &parent_to_child, &child_to_parent);
+        if (curr_options.verbose) {
+            for (unsigned i = 0; i<args.size(); i++) {
+                fprintf(stderr, "rsync_args[%d]: %s\n", i, args[i].c_str());
+            }
+        }
+        pid_t local_rsync_pid = fork_exec(args, parent_to_child, child_to_parent);
         if (curr_options.verbose)
             fprintf(stderr, "%s rsync pid: %d\n", curr_options.which_process, local_rsync_pid);
 

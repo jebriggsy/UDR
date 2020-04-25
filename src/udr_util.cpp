@@ -36,7 +36,23 @@ and limitations under the License.
 #include <arpa/inet.h>
 #include <signal.h>
 
-pid_t fork_exec(const std::vector<std::string> &args, int &p_to_c, int &c_to_p)
+std::string args_join(const udr_args &args, bool escape)
+{
+    if (args.size() == 0)
+        return "";
+    std::string r = args[0];
+    for(unsigned i=1; i < args.size(); i++)
+        r += " " + (escape ? arg_escape(args[i]) : args[i]);
+    return r;
+}
+
+std::string arg_escape(const std::string &arg)
+{
+    // TODO: Implement escaping of quotes, quoting args with spaces, etc
+    return arg;
+}
+
+pid_t fork_exec(const udr_args &args, int &p_to_c, int &c_to_p)
 {
     char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
     for(unsigned i=0; i<args.size(); i++)

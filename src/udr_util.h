@@ -24,6 +24,8 @@ and limitations under the License.
 #include <sstream>
 #include <vector>
 
+typedef std::vector<std::string> udr_args;
+
 template <typename T>
 std::string n_to_string ( T Number )
 {
@@ -32,8 +34,12 @@ std::string n_to_string ( T Number )
     return ss.str();
 }
 
-pid_t fork_exec(const std::vector<std::string> &args, int &p_to_c, int &c_to_p);
+pid_t fork_exec(const udr_args &args, int &p_to_c, int &c_to_p);
 pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp);
 int get_server_connection(char * host, char * port, char * udr_cmd, char * line, int line_size);
+
+// join argv into a shell command
+std::string args_join(const udr_args &args, bool escape=false);
+std::string arg_escape(const std::string &arg);
         
 #endif
