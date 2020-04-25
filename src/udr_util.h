@@ -34,6 +34,7 @@ std::string n_to_string ( T Number )
     return ss.str();
 }
 
+pid_t fork_exec(const udr_args &args);
 pid_t fork_exec(const udr_args &args, int &p_to_c, int &c_to_p);
 pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp);
 int get_server_connection(char * host, char * port, char * udr_cmd, char * line, int line_size);

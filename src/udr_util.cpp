@@ -52,6 +52,17 @@ std::string arg_escape(const std::string &arg)
     return arg;
 }
 
+pid_t fork_exec(const udr_args &args)
+{
+    char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
+    for(unsigned i=0; i<args.size(); i++)
+        argv[i] = (char*)args[i].c_str();
+    argv[args.size()] = 0;
+    pid_t pid = fork_execvp(argv[0], argv, 0, 0);
+    free(argv);
+    return pid;
+}
+
 pid_t fork_exec(const udr_args &args, int &p_to_c, int &c_to_p)
 {
     char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
@@ -76,21 +87,33 @@ pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp){
 //    idx++;
 //  }
 
-    if(pipe(parent_to_child) != 0 || pipe(child_to_parent) != 0){
-        perror("Pipe cannot be created");
-        exit(1);
+    if (ptc) {
+        if(pipe(parent_to_child) != 0 ) {
+            perror("Pipe cannot be created");
+            exit(1);
+        }
+    }
+    if (ctp) {
+        if(pipe(child_to_parent) != 0 ) {
+            perror("Pipe cannot be created");
+            exit(1);
+        }
     }
 
     pid = fork();
 
     if(pid == 0){
         //child
-        close(parent_to_child[1]);
-        dup2(parent_to_child[0], 0);
-        close(child_to_parent[0]);
-        dup2(child_to_parent[1], 1);
-
+        if (ptc) {
+            close(parent_to_child[1]);
+            dup2(parent_to_child[0], 0);
+        }
+        if (ctp) {
+            close(child_to_parent[0]);
+            dup2(child_to_parent[1], 1);            
+        }
         execvp(program, argv);
+        // Uh oh, we failed
         perror(program);
         exit(1);
     }
