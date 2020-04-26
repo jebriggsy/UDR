@@ -19,12 +19,11 @@ and limitations under the License.
 #ifndef UDR_PROCESSES_H
 #define UDR_PROCESSES_H
 
+#include "udr_options.h"
 #include <sys/types.h>
 #include <string>
 #include <sstream>
 #include <vector>
-
-typedef std::vector<std::string> udr_args;
 
 template <typename T>
 std::string n_to_string ( T Number )
@@ -34,10 +33,10 @@ std::string n_to_string ( T Number )
     return ss.str();
 }
 
-pid_t fork_exec(const udr_args &args);
-pid_t fork_exec(const udr_args &args, int &p_to_c, int &c_to_p);
+pid_t fork_exec(const std::string &what, const UDR_Options &options, const udr_args &args);
+pid_t fork_exec(const std::string &what, const UDR_Options &options, const udr_args &args, int &p_to_c, int &c_to_p);
 pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp);
-int get_server_connection(char * host, char * port, char * udr_cmd, char * line, int line_size);
+int get_server_connection(const std::string &host, int port, const std::string &udr_cmd, char * line, int line_size);
 
 // join argv into a shell command
 std::string args_join(const udr_args &args, bool escape=false);

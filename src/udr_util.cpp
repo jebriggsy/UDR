@@ -17,6 +17,7 @@ and limitations under the License.
 *****************************************************************************/
 
 #include "udr_util.h"
+#include <iostream>
 #include <stdlib.h>
 
 #include <unistd.h>
@@ -36,6 +37,9 @@ and limitations under the License.
 #include <arpa/inet.h>
 #include <signal.h>
 
+using std::cerr;
+using std::endl;
+
 std::string args_join(const udr_args &args, bool escape)
 {
     if (args.size() == 0)
@@ -52,8 +56,18 @@ std::string arg_escape(const std::string &arg)
     return arg;
 }
 
-pid_t fork_exec(const udr_args &args)
+static void print_args(const std::string &what, const UDR_Options &options, const udr_args &args)
 {
+    if (!options.verbose)
+        return;
+    cerr << options.which_process << " executing " << what << endl;
+    for (size_t i = 0; i < args.size(); i++)
+        cerr << options.which_process << " argv[" << i << "]: " << args[i] << endl;
+}
+
+pid_t fork_exec(const std::string &what, const UDR_Options &options, const udr_args &args)
+{
+    print_args(what, options, args);
     char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
     for(unsigned i=0; i<args.size(); i++)
         argv[i] = (char*)args[i].c_str();
@@ -63,8 +77,9 @@ pid_t fork_exec(const udr_args &args)
     return pid;
 }
 
-pid_t fork_exec(const udr_args &args, int &p_to_c, int &c_to_p)
+pid_t fork_exec(const std::string &what, const UDR_Options &options, const udr_args &args, int &p_to_c, int &c_to_p)
 {
+    print_args(what, options, args);
     char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
     for(unsigned i=0; i<args.size(); i++)
         argv[i] = (char*)args[i].c_str();
@@ -150,7 +165,8 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int get_server_connection(char * host, char * port, char * udr_cmd, char * line, int line_size){
+int get_server_connection(const std::string &host, int port, const std::string &udr_cmd, char * line, int line_size)
+{
     //first check to see udr server is running.... 
 
     int sockfd, numbytes;
@@ -162,21 +178,21 @@ int get_server_connection(char * host, char * port, char * udr_cmd, char * line,
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    if((rv = getaddrinfo(host, port, &hints, &servinfo)) != 0){
+    if((rv = getaddrinfo(host.c_str(), n_to_string(port).c_str(), &hints, &servinfo)) != 0){
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 0;
     }
 
     for(p = servinfo; p != NULL; p = p->ai_next){
         if((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-        //perror("udr client: socket");
-        continue;
+            //perror("udr client: socket");
+            continue;
         }
 
         if(connect(sockfd, p->ai_addr, p->ai_addrlen) == -1){
-        close(sockfd);
-        //perror("udr client: connect");
-        continue;
+            close(sockfd);
+            //perror("udr client: connect");
+            continue;
         }
 
         break;
@@ -192,7 +208,7 @@ int get_server_connection(char * host, char * port, char * udr_cmd, char * line,
     //First send the udr command
     //printf("client should be sending: %s\n", udr_cmd);
 
-    if(send(sockfd, udr_cmd, strlen(udr_cmd), 0) == -1){
+    if(send(sockfd, udr_cmd.c_str(), udr_cmd.size(), 0) == -1){
         perror("udr send");
         exit(1);
     }

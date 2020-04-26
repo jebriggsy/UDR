@@ -19,8 +19,10 @@ and limitations under the License.
 #ifndef UDR_THREADS_H
 #define UDR_THREADS_H
 
-#include "crypto.h"
+#include "udr_util.h"
 #include "udr_options.h"
+#include "crypto.h"
+
 
 const int max_block_size = 64*1024; //what should this be? maybe based on UDT buffer size?
 
@@ -43,7 +45,7 @@ struct thread_data{
 void *handle_to_udt(void *threadarg);
 void *udt_to_handle(void *threadarg);
 
-int run_sender(UDR_Options * udr_options, unsigned char * passphrase, const char* cmd, int argc, char ** argv);
-int run_receiver(UDR_Options * udr_options);
+int run_sender(const UDR_Options &udr_options, unsigned char * passphrase, const std::string &remote_cmd);
+int run_receiver(const UDR_Options &udr_options);
 
 #endif
