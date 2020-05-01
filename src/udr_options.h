@@ -29,6 +29,8 @@ struct UDR_Options{
     UDR_Options();
     int get_options(int argc, char * argv[]);
     void get_host_username();
+    int parse_port(const char *arg, const char *argname);
+    int parse_int(const char *arg, const char *argname);
 
     // The port UDR will attempt the initial SSH connection over
     int ssh_port;

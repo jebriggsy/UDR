@@ -27,6 +27,7 @@ and limitations under the License.
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <errno.h>
 
 using namespace std;
 
@@ -71,6 +72,28 @@ UDR_Options::UDR_Options()
     rsync_gid = 0;
 }
 
+int UDR_Options::parse_port(const char *p, const char *argname)
+{
+    errno=0;
+    int result = strtol(p, NULL, 10);
+    if (errno != 0 || result <= 0) {
+        cerr << "Invalid value for '" << argname <<"': " << p << endl;
+        usage();
+    }
+    return result;
+}
+
+int UDR_Options::parse_int(const char *p, const char *argname)
+{
+    errno=0;
+    int result = strtol(p, NULL, 10);
+    if (errno != 0) {
+        cerr << "Invalid value for '" << argname <<"': " << p << endl;
+        usage();
+    }
+    return result;
+}
+
 int UDR_Options::get_options(int argc, char * argv[])
 {
     std::string key_dir;
@@ -101,13 +124,13 @@ int UDR_Options::get_options(int argc, char * argv[])
     static struct option long_options[] = {
         {"verbose", no_argument, NULL, 'v'},
         {"version", no_argument, NULL, 0},
-        {"ssh-port", optional_argument, NULL, 'P'},
+        {"ssh-port", required_argument, NULL, 'P'},
         {"start-port", required_argument, NULL, 'a'},
         {"end-port", required_argument, NULL, 'b'},
         {"receiver", no_argument, NULL, 't'},
         {"server", required_argument, NULL, 'd'},
         {"encrypt", optional_argument, NULL, 'n'},
-        {"sender", no_argument, NULL, 's'},
+        {"sender", required_argument, NULL, 's'},
         {"login-name", required_argument, NULL, 'l'},
         {"keyfile", required_argument, NULL, 'p'},
         {"keydir", required_argument, NULL, 'k'},
@@ -121,22 +144,22 @@ int UDR_Options::get_options(int argc, char * argv[])
 
     int option_index = 0;
 
-    const char* opts = "P:i:tlvxa:b:s:d:h:p:c:k:o:n::";
+    const char* opts = "P:i:tl:vxa:b:s:d:h:p:c:k:o:n::";
 
     int ch;
     while ((ch = getopt_long(rsync_arg_idx, argv, opts, long_options, &option_index)) != -1) {
         switch (ch) {
         case 'P':
-            ssh_port = atoi(optarg);
+            ssh_port = parse_port(optarg, "ssh-port");
             break;
         case 'a':
-            start_port = atoi(optarg);
+            start_port = parse_port(optarg, "start-port");
             break;
         case 'd':
-            timeout = atoi(optarg);
+            timeout = parse_int(optarg, "server");
             break;
         case 'b':
-            end_port = atoi(optarg);
+            end_port = parse_port(optarg, "end-port");
             break;
         case 't':
             tflag = true;
@@ -149,7 +172,7 @@ int UDR_Options::get_options(int argc, char * argv[])
             break;
         case 's':
             sflag = true;
-            port_num = atoi(optarg);
+            port_num = parse_port(optarg, "sender");
             break;
         case 'l':
             username = optarg;
@@ -167,7 +190,7 @@ int UDR_Options::get_options(int argc, char * argv[])
             verbose = true;
             break;
         case 'o':
-            server_port =  atoi(optarg);
+            server_port =  parse_port(optarg, "server-port");
             break;
 
         case 'i':
@@ -184,16 +207,20 @@ int UDR_Options::get_options(int argc, char * argv[])
                 server_config = optarg;
             }
             else if (strcmp("rsync-uid", long_options[option_index].name) == 0){
-                rsync_uid = atoi(optarg);
+                rsync_uid = parse_int(optarg, "rsync-uid");
             }
             else if (strcmp("rsync-gid", long_options[option_index].name) == 0){
-                rsync_gid = atoi(optarg);
+                rsync_gid = parse_int(optarg, "rsync-gid");
             }
             break;
         default:
             fprintf(stderr, "Illegal argument: %c\n", ch);
             usage();
         }
+    }
+    if (start_port > end_port) {
+        cerr << "invalid port range " << start_port << "-" << end_port<<endl;
+        usage();
     }
 
     // now, take any remaining arguments and prepend it to any "rsync" args found at the beginning
