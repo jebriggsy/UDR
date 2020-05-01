@@ -317,7 +317,8 @@ std::string get_rsh_udr_cmd(const UDR_Options &options) {
         rsh_args.push_back("-v");
 
     // 'sender' part of rsh, connect to remote udt
-    rsh_args.push_back("-s");
+    // tells udr to mimic rsh in the way it parses arguments
+    rsh_args.push_back("--sender");
     rsh_args.push_back(n_to_string(options.port_num));
     
     if (options.encryption) {
@@ -329,9 +330,6 @@ std::string get_rsh_udr_cmd(const UDR_Options &options) {
         }
     }
     
-    // delimit the end of the options to udr
-    rsh_args.push_back("--");
-
     return args_join(rsh_args);
 }
 

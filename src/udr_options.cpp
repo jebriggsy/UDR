@@ -98,28 +98,10 @@ int UDR_Options::get_options(int argc, char * argv[])
 {
     std::string key_dir;
 
-    // If rsync is encountered in command line that is automatically
-    // the start of non-positional arguments.  Take that part and store
-    // it.  Also save the _entire_ command line for posterity
-    // Find the rsync part of the command line
-    int rsync_arg_idx = argc;
-    for (int i = 0; i < argc; i++) {
-        if (rsync_arg_idx == argc) {
-            // todo: allow full path ending in rsync
-            if (strcmp(argv[i], "rsync") == 0 ||
-                (strlen(argv[i]) >= 6 && strcmp(argv[i] + strlen(argv[i]) - 6, "/rsync") == 0))
-            {
-                rsync_arg_idx = i;
-            }
-        }
-        if (rsync_arg_idx != argc)
-            rsync_args.push_back(argv[i]);
+    // Save all args for posterity
+    for (int i = 0; i < argc; i++)
         args.push_back(argv[i]);
-    }
-    // make argument parsing stop at the place we found rsync
-    if (rsync_arg_idx != argc)
-        argv[rsync_arg_idx] = 0;
-
+    
     udr_program_src = argv[0];    
     static struct option long_options[] = {
         {"verbose", no_argument, NULL, 'v'},
@@ -144,10 +126,12 @@ int UDR_Options::get_options(int argc, char * argv[])
 
     int option_index = 0;
 
-    const char* opts = "P:i:tl:vxa:b:s:d:h:p:c:k:o:n::";
+    // parse opptions, stop at the first non-option (for ssh compatibility when invoked by rsync)
+    // other options needed for ssh compatibility: l  (login-name)
+    const char* opts = "+P:i:tl:vxa:b:s:d:h:p:c:k:o:n::";
 
     int ch;
-    while ((ch = getopt_long(rsync_arg_idx, argv, opts, long_options, &option_index)) != -1) {
+    while ((ch = getopt_long(argc, argv, opts, long_options, &option_index)) != -1) {
         switch (ch) {
         case 'P':
             ssh_port = parse_port(optarg, "ssh-port");
@@ -223,15 +207,10 @@ int UDR_Options::get_options(int argc, char * argv[])
         usage();
     }
 
-    // now, take any remaining arguments and prepend it to any "rsync" args found at the beginning
-    udr_args remaining;
+    // all the non-options are the so-called rsync args
     while(argv[optind])
-        remaining.push_back(argv[optind++]);
-    for(udr_args::iterator it = rsync_args.begin(); it != rsync_args.end(); ++it)
-        remaining.push_back(*it);
-    rsync_args = remaining;
+        rsync_args.push_back(argv[optind++]);
     
-
     // verify that timeout duration > 0
     if (timeout < 1){
        cerr << "Please specify a timeout duration [-d timeout] greater than 0s." << endl;
