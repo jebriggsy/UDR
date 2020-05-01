@@ -16,18 +16,19 @@ See the License for the specific language governing permissions
 and limitations under the License.
 *****************************************************************************/
 
+#include "udr_threads.h"
+#include "udr_util.h"
+
+#include <udt.h>
+
 #include <unistd.h>
 #include <pthread.h>
-#include <sstream>
 #include <signal.h>
 #include <netdb.h>
 #include <errno.h>
 #include <syslog.h>
 #include <sys/types.h>
 #include <glob.h>
-#include <udt.h>
-#include "udr_util.h"
-#include "udr_threads.h"
 
 #include <arpa/inet.h>
 
@@ -36,6 +37,8 @@ and limitations under the License.
 #include <fcntl.h>
 #include <sys/select.h>
 
+#include <sstream>
+
 using std::string;
 
 int ppid_poll = 5;
@@ -43,6 +46,15 @@ bool thread_log = false;
 
 //for debugging
 string local_logfile_dir = "../log";
+
+thread_data::thread_data():
+    udt_socket(NULL),
+    fd(0), id(-1),
+    crypt(NULL),
+    debug(false),
+    log(false),
+    is_complete(false)
+{}
 
 // Ever TRANSFER_TIMEOUT interval, check to see if data has been exchanged
 // if timeout_sem = 1 then data has been exchanged
@@ -164,6 +176,8 @@ void *handle_to_udt(void *threadarg) {
             return NULL;
         }
         if(bytes_read == 0) {
+            if (my_args->debug)
+                cerr << my_args->thread_name << " got EOF" << endl;
             if(my_args->log){
                 fprintf(logfile, "%d Got %d bytes_read, exiting\n", my_args->id, bytes_read);
                 fclose(logfile);
@@ -232,6 +246,9 @@ void *udt_to_handle(void *threadarg) {
             return NULL;
         }
 
+        if (my_args->debug)
+                cerr << my_args->thread_name << " got EOF" << endl;
+            
         int written_bytes;
         if(my_args->crypt != NULL) {
             my_args->crypt->encrypt(indata, outdata, rs);
@@ -319,20 +336,20 @@ int run_sender(const UDR_Options &udr_options, unsigned char * passphrase, const
         cerr << udr_options.which_process << " sent command of " << ssize << " bytes" << endl;
 
     struct thread_data sender_to_udt;
+    sender_to_udt.thread_name = "sender_to_udt";
+    sender_to_udt.id = 0;
     sender_to_udt.udt_socket = &client;
     sender_to_udt.fd = STDIN_FILENO; //stdin of this process, from stdout of rsync
-    sender_to_udt.id = 0;
     sender_to_udt.log = thread_log;
     sender_to_udt.logfile_dir = local_logfile_dir;
-    sender_to_udt.is_complete = false;
 
     struct thread_data udt_to_sender;
+    udt_to_sender.thread_name = "udt_to_sender";
+    udt_to_sender.id = 1;
     udt_to_sender.udt_socket = &client;
     udt_to_sender.fd = STDOUT_FILENO; //stdout of this process, going to stdin of rsync, rsync defaults to set this is non-blocking
-    udt_to_sender.id = 1;
     udt_to_sender.log = thread_log;
     udt_to_sender.logfile_dir = local_logfile_dir;
-    udt_to_sender.is_complete = false;
 
     if(udr_options.encryption){
         crypto encrypt(EVP_ENCRYPT, PASSPHRASE_SIZE, (unsigned char *) passphrase,
@@ -343,10 +360,7 @@ int run_sender(const UDR_Options &udr_options, unsigned char * passphrase, const
         sender_to_udt.crypt = &encrypt;
         udt_to_sender.crypt = &decrypt;
     }
-    else{
-        sender_to_udt.crypt = NULL;
-        udt_to_sender.crypt = NULL;
-    }
+    
 
     pthread_t sender_to_udt_thread;
     pthread_create(&sender_to_udt_thread, NULL, handle_to_udt, (void *)&sender_to_udt);
@@ -547,19 +561,19 @@ int run_receiver(const UDR_Options &udr_options) {
 
     struct thread_data recv_to_udt;
     recv_to_udt.udt_socket = &recver;
-    recv_to_udt.fd = child_to_parent; //stdout of rsync server process
+    recv_to_udt.thread_name = "recv_to_udt";
     recv_to_udt.id = 2;
+    recv_to_udt.fd = child_to_parent; //stdout of rsync server process
     recv_to_udt.log = thread_log;
     recv_to_udt.logfile_dir = local_logfile_dir;
-    recv_to_udt.is_complete = false;
 
     struct thread_data udt_to_recv;
     udt_to_recv.udt_socket = &recver;
-    udt_to_recv.fd = parent_to_child; //stdin of rsync server process
+    udt_to_recv.thread_name = "udt_to_recv";
     udt_to_recv.id = 3;
+    udt_to_recv.fd = parent_to_child; //stdin of rsync server process
     udt_to_recv.log = thread_log;
     udt_to_recv.logfile_dir = local_logfile_dir;
-    udt_to_recv.is_complete = false;
 
     if(udr_options.encryption){
         crypto encrypt(EVP_ENCRYPT, PASSPHRASE_SIZE, rand_pp,
@@ -569,17 +583,12 @@ int run_receiver(const UDR_Options &udr_options) {
         recv_to_udt.crypt = &encrypt;
         udt_to_recv.crypt = &decrypt;
     }
-    else{
-        recv_to_udt.crypt = NULL;
-        udt_to_recv.crypt = NULL;
-    }
 
     pthread_t recv_to_udt_thread;
     pthread_create(&recv_to_udt_thread, NULL, handle_to_udt, (void *)&recv_to_udt);
 
     pthread_t udt_to_recv_thread;
     pthread_create(&udt_to_recv_thread, NULL, udt_to_handle, (void*)&udt_to_recv);
-
 
     timeout_sem = 2;
     pthread_t counter_thread;

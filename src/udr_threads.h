@@ -23,6 +23,10 @@ and limitations under the License.
 #include "udr_options.h"
 #include "crypto.h"
 
+#include <string>
+
+#include <udt.h>
+
 
 const int max_block_size = 64*1024; //what should this be? maybe based on UDT buffer size?
 
@@ -33,13 +37,16 @@ typedef struct timeout_mon_args{
     
  
 struct thread_data{
+    thread_data();
     UDTSOCKET * udt_socket;
     int fd;
     int id;
     crypto * crypt;
+    bool debug;
     bool log;
-    string logfile_dir;
+    std::string logfile_dir;
     bool is_complete;
+    std::string thread_name;
 };
 
 void *handle_to_udt(void *threadarg);
