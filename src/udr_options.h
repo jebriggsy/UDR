@@ -20,6 +20,8 @@ and limitations under the License.
 #define UDR_OPTIONS_H
 #include <string>
 #include <vector>
+#include <iostream>
+#include <fstream>
 #include <netdb.h>
 #include <limits.h>
 
@@ -31,6 +33,12 @@ struct UDR_Options{
     void get_host_username();
     int parse_port(const char *arg, const char *argname);
     int parse_int(const char *arg, const char *argname);
+    std::ostream &err() const;
+    std::ostream &verb();
+    std::ostream &dbg();
+    bool is_verbose() const {return verbose >= 1;}
+    bool is_debug() const {return verbose >= 2;}
+    bool is_debug2() const {return verbose >= 3;}
 
     // The port UDR will attempt the initial SSH connection over
     int ssh_port;
@@ -40,7 +48,7 @@ struct UDR_Options{
 
     bool tflag;
     bool sflag;
-    bool verbose;
+    int verbose;
     bool encryption;
     bool version_flag;
     bool server_connect;
@@ -75,6 +83,8 @@ struct UDR_Options{
     // the rsync part of the command ine, starting with the rsync cmd itself.
     std::vector<std::string> args;  // args uptil rsync
     std::vector<std::string> rsync_args; // rsync and following args
+private:
+    std::ofstream nullstream;
 };
 
 void usage();

@@ -53,7 +53,7 @@ UDR_Options::UDR_Options()
     timeout = 15;
     tflag = false;
     sflag = false;
-    verbose = false;
+    verbose = 0;
     encryption = false;
     encryption_type = "aes-128";
     version_flag = false;
@@ -70,6 +70,8 @@ UDR_Options::UDR_Options()
 
     rsync_uid = 0;
     rsync_gid = 0;
+
+    nullstream.setstate(std::ios_base::badbit);
 }
 
 int UDR_Options::parse_port(const char *p, const char *argname)
@@ -93,6 +95,25 @@ int UDR_Options::parse_int(const char *p, const char *argname)
     }
     return result;
 }
+
+// logging and verbosity helpers
+ostream & UDR_Options::err() const
+{
+    return cerr << which_process << ' ';
+}
+ostream & UDR_Options::verb()
+{
+    if (is_verbose())
+        return cerr << which_process << ' ';
+    return nullstream;
+}
+ostream & UDR_Options::dbg()
+{
+    if (is_debug())
+        return cerr << which_process << ' ';
+    return nullstream;
+}
+
 
 int UDR_Options::get_options(int argc, char * argv[])
 {
@@ -171,7 +192,7 @@ int UDR_Options::get_options(int argc, char * argv[])
             key_dir = optarg;
             break;
         case 'v':
-            verbose = true;
+            verbose += 1;
             break;
         case 'o':
             server_port =  parse_port(optarg, "server-port");
