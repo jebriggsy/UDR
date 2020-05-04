@@ -39,9 +39,9 @@ and limitations under the License.
 
 using namespace std;
 
-static int run_udr_main(UDR_Options &curr_options);
-static int run_udr_rsh_client(UDR_Options &curr_options);
-static int run_udr_rsh_server(const UDR_Options &curr_options);
+static int run_udr_main(UDR_Options &options);
+static int run_udr_rsh_client(UDR_Options &options);
+static int run_udr_rsh_server(const UDR_Options &options);
 static std::string get_remote_udr_cmd(const UDR_Options &options);
 static std::string get_rsh_udr_cmd(const UDR_Options &options);
 static udr_args get_rsync_args(const UDR_Options &options);
@@ -51,54 +51,54 @@ static void print_version();
 int main(int argc, char* argv[]) {
 
     //now get the options using udr_options.
-    struct UDR_Options &curr_options = goptions;
+    struct UDR_Options &options = goptions;
 
-    curr_options.get_options(argc, argv);
+    options.get_options(argc, argv);
 
-    if (curr_options.version_flag || curr_options.verbose) {
+    if (options.version_flag || options.verbose) {
         print_version();
-        if (!curr_options.verbose)
+        if (!options.verbose)
             return 0;
     }
 
-    if (curr_options.tflag) {
+    if (options.tflag) {
         // I am the rsh remote 
-        return run_udr_rsh_server(curr_options);
+        return run_udr_rsh_server(options);
     }
 
-    if (curr_options.sflag) {
+    if (options.sflag) {
         // I am the rsh client
-        return run_udr_rsh_client(curr_options);
+        return run_udr_rsh_client(options);
     }
 
-    return run_udr_main(curr_options);
+    return run_udr_main(options);
 }
 
 
-int run_udr_main(UDR_Options &curr_options)
+int run_udr_main(UDR_Options &options)
 {
     // We are the main program.
 
-    if (!curr_options.rsync_args.size())
+    if (!options.rsync_args.size())
         usage();
 
     //get the host and username first
-    curr_options.get_host_username();
+    options.get_host_username();
 
-    std::string udr_cmd = get_remote_udr_cmd(curr_options);
+    std::string udr_cmd = get_remote_udr_cmd(options);
 
     int line_size = NI_MAXSERV + PASSPHRASE_SIZE * 2 + 1;
     char * line = (char*) malloc(line_size);
     line[0] = '\0';
 
-    /* if given double colons then use the server connection: curr_options.server_connect, curr_options.server is for the udr server */
-    if (curr_options.server_connect) {
+    /* if given double colons then use the server connection: options.server_connect, options.server is for the udr server */
+    if (options.server_connect) {
         options.verb() << " trying server connection" << endl;
 
-        int server_exists = get_server_connection(curr_options.host, curr_options.server_port, udr_cmd.c_str(), line, line_size);
+        int server_exists = get_server_connection(options.host, options.server_port, udr_cmd.c_str(), line, line_size);
 
         if (!server_exists) {
-            cerr << "UDR ERROR: Cannot connect to server at " << curr_options.host << ":" << curr_options.server_port << endl;
+            cerr << "UDR ERROR: Cannot connect to server at " << options.host << ":" << options.server_port << endl;
             exit(EXIT_FAILURE);
         }
     }
@@ -110,20 +110,20 @@ int run_udr_main(UDR_Options &curr_options)
 
         // todo: allow user to specify ssh program and args
         std::vector<std::string> args;
-        args.push_back(curr_options.ssh_program);
+        args.push_back(options.ssh_program);
 
         // Add ssh port
-        if (curr_options.ssh_port) {
+        if (options.ssh_port) {
             args.push_back("-p");
-            args.push_back(n_to_string(curr_options.ssh_port));
+            args.push_back(n_to_string(options.ssh_port));
         }
 
-        if (!curr_options.username.empty()) {
+        if (!options.username.empty()) {
             args.push_back("-l");
-            args.push_back(curr_options.username);
+            args.push_back(options.username);
         }
 
-        args.push_back(curr_options.host);
+        args.push_back(options.host);
         args.push_back(udr_cmd);
         fork_exec("ssh_program", args, sshparent_to_child, sshchild_to_parent);
 
@@ -162,17 +162,17 @@ int run_udr_main(UDR_Options &curr_options)
         exit(EXIT_FAILURE);
     }
 
-    curr_options.port_num = atoi(strtok(line, " "));    
+    options.port_num = atoi(strtok(line, " "));    
     char * hex_pp = strtok(NULL, " ");
 
-    options.verb() << " port_num: " << curr_options.port_num << " passphrase: " <<  hex_pp << endl;
+    options.verb() << " port_num: " << options.port_num << " passphrase: " <<  hex_pp << endl;
 
-    if (curr_options.encryption) {
-        FILE *key_file = fopen(curr_options.key_filename.c_str(), "w");
-        int fail = chmod(curr_options.key_filename.c_str(), S_IRUSR | S_IWUSR);
+    if (options.encryption) {
+        FILE *key_file = fopen(options.key_filename.c_str(), "w");
+        int fail = chmod(options.key_filename.c_str(), S_IRUSR | S_IWUSR);
 
         if (key_file == NULL || fail) {
-            options.err() << "UDR ERROR: could not write key file: " << curr_options.key_filename << endl;
+            options.err() << "UDR ERROR: could not write key file: " << options.key_filename << endl;
             exit(EXIT_FAILURE);
         }
         fprintf(key_file, "%s", hex_pp);
@@ -180,7 +180,7 @@ int run_udr_main(UDR_Options &curr_options)
     }
 
     //Invoke rsync
-    udr_args args = get_rsync_args(curr_options);
+    udr_args args = get_rsync_args(options);
 
     pid_t local_rsync_pid = fork_exec("rsync", args);
     options.verb() << " rsync pid: " << local_rsync_pid << endl;
@@ -198,21 +198,21 @@ int run_udr_main(UDR_Options &curr_options)
 }
 
 // Udr was invoked as an rsh client by rsync.  Perform this mode.
-int run_udr_rsh_client(UDR_Options &curr_options)
+int run_udr_rsh_client(UDR_Options &options)
 {
     char hex_pp[HEX_PASSPHRASE_SIZE];
     unsigned char passphrase[PASSPHRASE_SIZE];
 
-    if (curr_options.encryption) {
-        options.verb() << " Key filename: " << curr_options.key_filename << endl;
-        FILE* key_file = fopen(curr_options.key_filename.c_str(), "r");
+    if (options.encryption) {
+        options.verb() << " Key filename: " << options.key_filename << endl;
+        FILE* key_file = fopen(options.key_filename.c_str(), "r");
         if (key_file == NULL) {
-            cerr << curr_options.which_process << " UDR ERROR: could not read from key_file " << curr_options.key_filename << endl;
+            cerr << options.which_process << " UDR ERROR: could not read from key_file " << options.key_filename << endl;
             exit(EXIT_FAILURE);
         }
         fscanf(key_file, "%s", hex_pp);
         fclose(key_file);
-        remove(curr_options.key_filename.c_str());
+        remove(options.key_filename.c_str());
 
         for (unsigned int i = 0; i < strlen(hex_pp); i = i + 2) {
             unsigned int c;
@@ -222,16 +222,16 @@ int run_udr_rsh_client(UDR_Options &curr_options)
     }
 
     // target host is the last argument
-    udr_args args = curr_options.rsync_args;
-    curr_options.host = args.front();
+    udr_args args = options.rsync_args;
+    options.host = args.front();
 
     // all the rest is the remote command
     args.erase(args.begin());
     std::string remote_command = args_join(args); 
 
-    options.verb() << " rsh host: " << curr_options.host << " cmd: \"" << remote_command << "\"" << endl;
+    options.verb() << " rsh host: " << options.host << " cmd: \"" << remote_command << "\"" << endl;
 
-    run_sender(curr_options, passphrase, remote_command);
+    run_sender(options, passphrase, remote_command);
 
     options.verb () << " run_sender done" << endl;
     return 0;
@@ -239,9 +239,9 @@ int run_udr_rsh_client(UDR_Options &curr_options)
 
 // We are the rsh server, invoked on remote to talk to the rsh client
 // over which rsync will communicate
-int run_udr_rsh_server(const UDR_Options &curr_options)
+int run_udr_rsh_server(const UDR_Options &options)
 {
-    return run_receiver(curr_options);
+    return run_receiver(options);
 }
 
 // Get the argv to invoke rsync

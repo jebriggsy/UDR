@@ -33,7 +33,8 @@ struct UDR_Options{
     void get_host_username();
     int parse_port(const char *arg, const char *argname);
     int parse_int(const char *arg, const char *argname);
-    std::ostream &err() const;
+    std::ostream &err() ;
+    std::ostream &err(int errnum);
     std::ostream &verb();
     std::ostream &dbg();
     bool is_verbose() const {return verbose >= 1;}
