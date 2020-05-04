@@ -51,7 +51,7 @@ static void print_version();
 int main(int argc, char* argv[]) {
 
     //now get the options using udr_options.
-    struct UDR_Options curr_options;
+    struct UDR_Options &curr_options = goptions;
 
     curr_options.get_options(argc, argv);
 

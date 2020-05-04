@@ -89,4 +89,7 @@ private:
 
 void usage();
 
+// the global options
+extern UDR_Options goptions;
+
 #endif

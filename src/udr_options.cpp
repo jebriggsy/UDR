@@ -368,3 +368,6 @@ void UDR_Options::get_host_username()
         server_connect = dest_double_colon;
     }
 }
+
+
+UDR_Options goptions;
