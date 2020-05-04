@@ -33,8 +33,8 @@ std::string n_to_string ( T Number )
     return ss.str();
 }
 
-pid_t fork_exec(const std::string &what, const UDR_Options &options, const udr_args &args);
-pid_t fork_exec(const std::string &what, const UDR_Options &options, const udr_args &args, int &p_to_c, int &c_to_p);
+pid_t fork_exec(const std::string &what, const udr_args &args);
+pid_t fork_exec(const std::string &what, const udr_args &args, int &p_to_c, int &c_to_p);
 pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp);
 int get_server_connection(const std::string &host, int port, const std::string &udr_cmd, char * line, int line_size);
 

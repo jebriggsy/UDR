@@ -93,9 +93,7 @@ int run_udr_main(UDR_Options &curr_options)
 
     /* if given double colons then use the server connection: curr_options.server_connect, curr_options.server is for the udr server */
     if (curr_options.server_connect) {
-        if(curr_options.verbose){
-            cerr << curr_options.which_process << " trying server connection" << endl;
-        }
+        options.verb() << " trying server connection" << endl;
 
         int server_exists = get_server_connection(curr_options.host, curr_options.server_port, udr_cmd.c_str(), line, line_size);
 
@@ -127,7 +125,7 @@ int run_udr_main(UDR_Options &curr_options)
 
         args.push_back(curr_options.host);
         args.push_back(udr_cmd);
-        fork_exec("ssh_program", curr_options, args, sshparent_to_child, sshchild_to_parent);
+        fork_exec("ssh_program", args, sshparent_to_child, sshchild_to_parent);
 
         // read one line from ssh
         ssize_t nbytes = 0;
@@ -149,12 +147,10 @@ int run_udr_main(UDR_Options &curr_options)
         if (nbytes && line[nbytes-1] == '\n')
             line[nbytes-1] = '\0';
 
-        if (curr_options.verbose) {
-            cerr << curr_options.which_process << " Received string: " << line << endl;
-        }
+        options.verb() << " Received string: " << line << endl;
 
         if (nbytes <= 0) {
-            fprintf(stderr, "UDR ERROR: unexpected response from server, exiting.\n");
+            options.err() << "UDR ERROR: unexpected response from remote, exiting." << endl;
             exit(EXIT_FAILURE);
         }
     }
@@ -162,23 +158,21 @@ int run_udr_main(UDR_Options &curr_options)
     // Now, start the rsync process, parsing the info from remote
 
     if (strlen(line) == 0) {
-        fprintf(stderr, "UDR ERROR: unexpected response from server, exiting.\n");
+        options.err() << "UDR ERROR: unexpected response from remote, exiting." << endl;
         exit(EXIT_FAILURE);
     }
 
     curr_options.port_num = atoi(strtok(line, " "));    
     char * hex_pp = strtok(NULL, " ");
 
-    if (curr_options.verbose) {
-        cerr << curr_options.which_process << " port_num: " << curr_options.port_num << " passphrase: " <<  hex_pp << endl;
-    }
+    options.verb() << " port_num: " << curr_options.port_num << " passphrase: " <<  hex_pp << endl;
 
     if (curr_options.encryption) {
         FILE *key_file = fopen(curr_options.key_filename.c_str(), "w");
         int fail = chmod(curr_options.key_filename.c_str(), S_IRUSR | S_IWUSR);
 
         if (key_file == NULL || fail) {
-            cerr << "UDR ERROR: could not write key file: " << curr_options.key_filename << endl;
+            options.err() << "UDR ERROR: could not write key file: " << curr_options.key_filename << endl;
             exit(EXIT_FAILURE);
         }
         fprintf(key_file, "%s", hex_pp);
@@ -188,9 +182,8 @@ int run_udr_main(UDR_Options &curr_options)
     //Invoke rsync
     udr_args args = get_rsync_args(curr_options);
 
-    pid_t local_rsync_pid = fork_exec("rsync", curr_options, args);
-    if (curr_options.verbose)
-        cerr << curr_options.which_process << " rsync pid: " << local_rsync_pid << endl;
+    pid_t local_rsync_pid = fork_exec("rsync", args);
+    options.verb() << " rsync pid: " << local_rsync_pid << endl;
 
     //at this point this process should wait for the rsync process to end
     int rsync_exit_status;
@@ -211,8 +204,7 @@ int run_udr_rsh_client(UDR_Options &curr_options)
     unsigned char passphrase[PASSPHRASE_SIZE];
 
     if (curr_options.encryption) {
-        if (curr_options.verbose)
-            cerr << curr_options.which_process << " Key filename: " << curr_options.key_filename << endl;
+        options.verb() << " Key filename: " << curr_options.key_filename << endl;
         FILE* key_file = fopen(curr_options.key_filename.c_str(), "r");
         if (key_file == NULL) {
             cerr << curr_options.which_process << " UDR ERROR: could not read from key_file " << curr_options.key_filename << endl;
@@ -237,13 +229,11 @@ int run_udr_rsh_client(UDR_Options &curr_options)
     args.erase(args.begin());
     std::string remote_command = args_join(args); 
 
-    if (curr_options.verbose)
-        cerr << curr_options.which_process << " rsh host: " << curr_options.host << " cmd: \"" << remote_command << "\"" << endl;
+    options.verb() << " rsh host: " << curr_options.host << " cmd: \"" << remote_command << "\"" << endl;
 
     run_sender(curr_options, passphrase, remote_command);
 
-    if (curr_options.verbose)
-        cerr << curr_options.which_process << " run_sender done" << endl;
+    options.verb () << " run_sender done" << endl;
     return 0;
 }
 

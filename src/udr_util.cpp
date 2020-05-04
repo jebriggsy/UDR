@@ -56,18 +56,16 @@ std::string arg_escape(const std::string &arg)
     return arg;
 }
 
-static void print_args(const std::string &what, const UDR_Options &options, const udr_args &args)
+static void print_args(const std::string &what, const udr_args &args)
 {
-    if (!options.verbose)
-        return;
-    cerr << options.which_process << " executing " << what << endl;
+    goptions.verb() << " executing " << what << endl;
     for (size_t i = 0; i < args.size(); i++)
-        cerr << options.which_process << " argv[" << i << "]: " << args[i] << endl;
+        goptions.verb() << " argv[" << i << "]: " << args[i] << endl;
 }
 
-pid_t fork_exec(const std::string &what, const UDR_Options &options, const udr_args &args)
+pid_t fork_exec(const std::string &what, const udr_args &args)
 {
-    print_args(what, options, args);
+    print_args(what, args);
     char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
     for(unsigned i=0; i<args.size(); i++)
         argv[i] = (char*)args[i].c_str();
@@ -77,9 +75,9 @@ pid_t fork_exec(const std::string &what, const UDR_Options &options, const udr_a
     return pid;
 }
 
-pid_t fork_exec(const std::string &what, const UDR_Options &options, const udr_args &args, int &p_to_c, int &c_to_p)
+pid_t fork_exec(const std::string &what, const udr_args &args, int &p_to_c, int &c_to_p)
 {
-    print_args(what, options, args);
+    print_args(what, args);
     char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
     for(unsigned i=0; i<args.size(); i++)
         argv[i] = (char*)args[i].c_str();
@@ -105,13 +103,13 @@ pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp){
     if (ptc) {
         if(pipe(parent_to_child) != 0 ) {
             perror("Pipe cannot be created");
-            exit(1);
+            exit(errno);
         }
     }
     if (ctp) {
         if(pipe(child_to_parent) != 0 ) {
             perror("Pipe cannot be created");
-            exit(1);
+            exit(errno);
         }
     }
 
@@ -121,20 +119,28 @@ pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp){
         //child
         if (ptc) {
             close(parent_to_child[1]);
-            dup2(parent_to_child[0], 0);
+            if (-1 == dup2(parent_to_child[0], STDIN_FILENO)) {
+                goptions.err() << "dup2 error: " << strerror(errno) << endl;
+                exit(errno);
+            }
+            close(parent_to_child[0]);
         }
         if (ctp) {
             close(child_to_parent[0]);
-            dup2(child_to_parent[1], 1);            
+            if (-1 == dup2(child_to_parent[1], STDOUT_FILENO)){
+                goptions.err() << "dup2 error: " << strerror(errno) << endl;
+                exit(errno);
+            }
+            close(child_to_parent[1]);
         }
         execvp(program, argv);
         // Uh oh, we failed
-        perror(program);
-        exit(1);
+        goptions.err() << "execvp error: " << strerror(errno) << endl;
+        exit(errno);
     }
     else if(pid == -1){
-        fprintf(stderr, "Error starting %s\n", program);
-        exit(1);
+        goptions.err() <<  "Error starting " <<  program << " : " << strerror(errno) << endl;
+        exit(errno);
     }
     else{
         //parent
