@@ -675,3 +675,29 @@ int run_receiver(const UDR_Options &udr_options) {
 
     return 0;
 }
+
+
+udr_thread::udr_thread() :
+    thread(0), done(false)
+{}
+
+udr_thread::~udr_thread()
+{}
+
+
+bool udr_thread::start()
+{
+    int res = pthread_create(&thread, NULL, _thread_func, static_cast<void*>(this));
+    if (res)
+        goptions.err() << "failed to create thread: " << res << endl;
+    return res == 0;
+}
+
+void * udr_thread::_thread_func(void* inst)
+{
+    udr_thread *self = static_cast<udr_thread*>(inst);
+    void *result = self->thread_func();
+    self->done = true;
+    return result;
+}
+
