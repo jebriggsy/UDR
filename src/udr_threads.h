@@ -31,6 +31,8 @@ and limitations under the License.
 const int max_block_size = 64*1024; //what should this be? maybe based on UDT buffer size?
 
 
+// wrapper for pthread, allowing thread functions to be defined  by
+// subclassing
 class udr_thread
 {
 public:
@@ -38,6 +40,9 @@ public:
     virtual ~udr_thread();
 
     bool start();
+    bool cancel();
+    bool join(void* &retval);
+    bool join();
 
     pthread_t thread;
 
@@ -46,6 +51,27 @@ private:
     virtual void *thread_func() = 0;
     static void *_thread_func(void*);
     bool done;
+    bool started;
+    bool joined;
+};
+
+// a subclass that invokes an instance method on a class
+template<typename T>
+class udr_memberthread : public udr_thread
+{
+public:
+    udr_memberthread(T &_inst, void *(T::*_member)(void)) : 
+        inst(_inst),
+        member(_member)
+        {}
+
+private:
+    void * thread_func()
+    {
+        return (inst.*member)();
+    }
+    T &inst;
+    void *(T::*member)(void);
 };
 
 

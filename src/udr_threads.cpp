@@ -678,7 +678,7 @@ int run_receiver(const UDR_Options &udr_options) {
 
 
 udr_thread::udr_thread() :
-    thread(0), done(false)
+    thread(0), done(false), started(false), joined(false)
 {}
 
 udr_thread::~udr_thread()
@@ -688,9 +688,41 @@ udr_thread::~udr_thread()
 bool udr_thread::start()
 {
     int res = pthread_create(&thread, NULL, _thread_func, static_cast<void*>(this));
-    if (res)
+    if (res) {
         goptions.err() << "failed to create thread: " << res << endl;
-    return res == 0;
+        return false;
+    }
+    started = true;
+    return true;
+}
+
+bool udr_thread::cancel()
+{
+    if (pthread_cancel(thread)) {
+        goptions.err() << "pthread_cancel() failed. " << endl;
+        return false;
+    }
+    return true;
+}
+
+bool udr_thread::join(void * &retval)
+{
+    if (pthread_join(thread, &retval)) {
+        goptions.err() << "join() failed. " << endl;
+        return false;
+    }
+    joined = true;
+    return true;
+}
+
+bool udr_thread::join()
+{
+    void *retval;
+    if (pthread_join(thread, &retval)) {
+        goptions.err() << "join() failed. " << endl;
+        return false;
+    }
+    return true;
 }
 
 void * udr_thread::_thread_func(void* inst)
