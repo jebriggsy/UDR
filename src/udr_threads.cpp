@@ -21,13 +21,14 @@ and limitations under the License.
 
 #include <udt.h>
 
+#include <string.h>
+
 #include <unistd.h>
 #include <pthread.h>
 #include <signal.h>
 #include <netdb.h>
 #include <errno.h>
 #include <syslog.h>
-#include <sys/types.h>
 #include <glob.h>
 
 #include <arpa/inet.h>
@@ -38,6 +39,9 @@ and limitations under the License.
 #include <sys/select.h>
 
 #include <sstream>
+
+#include <openssl/rand.h>
+
 
 using std::string;
 using std::endl;
@@ -350,9 +354,9 @@ int run_sender(const UDR_Options &udr_options, unsigned char * passphrase, const
     udt_to_sender.logfile_dir = local_logfile_dir;
 
     if(udr_options.encryption){
-        crypto encrypt(EVP_ENCRYPT, PASSPHRASE_SIZE, (unsigned char *) passphrase,
+        udr_crypt encrypt(EVP_ENCRYPT, PASSPHRASE_SIZE, (unsigned char *) passphrase,
         (char*)udr_options.encryption_type.c_str());
-        crypto decrypt(EVP_DECRYPT, PASSPHRASE_SIZE, (unsigned char *) passphrase,
+        udr_crypt decrypt(EVP_DECRYPT, PASSPHRASE_SIZE, (unsigned char *) passphrase,
         (char*)udr_options.encryption_type.c_str());
         // free_key(passphrase);
         sender_to_udt.crypt = &encrypt;
@@ -566,9 +570,9 @@ int run_receiver(const UDR_Options &udr_options) {
     udt_to_recv.logfile_dir = local_logfile_dir;
 
     if(udr_options.encryption){
-        crypto encrypt(EVP_ENCRYPT, PASSPHRASE_SIZE, rand_pp,
+        udr_crypt encrypt(EVP_ENCRYPT, PASSPHRASE_SIZE, rand_pp,
         (char*)udr_options.encryption_type.c_str());
-        crypto decrypt(EVP_DECRYPT, PASSPHRASE_SIZE, rand_pp,
+        udr_crypt decrypt(EVP_DECRYPT, PASSPHRASE_SIZE, rand_pp,
         (char*)udr_options.encryption_type.c_str());
         recv_to_udt.crypt = &encrypt;
         udt_to_recv.crypt = &decrypt;

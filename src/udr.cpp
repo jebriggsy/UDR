@@ -30,7 +30,7 @@ and limitations under the License.
 #include <sys/wait.h>
 
 #include <udt.h>
-#include "crypto.h"
+#include "udr_crypt.h"
 #include "cc.h"
 #include "udr_threads.h"
 #include "udr_util.h"

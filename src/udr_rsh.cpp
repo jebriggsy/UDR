@@ -14,6 +14,9 @@
 #include <string>
 #include <iostream>
 
+#include <openssl/rand.h>
+
+
 using std::cerr;
 using std::endl;
 using std::string;

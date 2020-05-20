@@ -21,7 +21,7 @@ and limitations under the License.
 
 #include "udr_util.h"
 #include "udr_options.h"
-#include "crypto.h"
+#include "udr_crypt.h"
 
 #include <string>
 
@@ -86,7 +86,7 @@ struct thread_data{
     UDTSOCKET * udt_socket;
     int fd;
     int id;
-    crypto * crypt;
+    udr_crypt * crypt;
     bool debug;
     bool log;
     std::string logfile_dir;

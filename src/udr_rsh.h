@@ -3,7 +3,7 @@
 #define UDR_RSH_H
 
 #include "udr_threads.h"
-#include "crypto.h"
+#include "udr_crypt.h"
 
 #include <string>
 
