@@ -40,6 +40,7 @@ and limitations under the License.
 #include <sstream>
 
 using std::string;
+using std::endl;
 
 int ppid_poll = 5;
 bool thread_log = false;
@@ -102,7 +103,7 @@ void print_bytes(FILE* file, const void *object, size_t size) {
 }
 
 string convert_int(int number) {
-    stringstream ss;
+    std::stringstream ss;
     ss << number;
     return ss.str();
 }
@@ -117,7 +118,7 @@ string udt_recv_string( int udt_handle ) {
     for( ;; ) {
         int bytes_read = UDT::recv( udt_handle , buf , 1 , 0 );
         if ( bytes_read == UDT::ERROR ){
-            cerr << "recv:" << UDT::getlasterror().getErrorMessage() << endl;
+            goptions.err() << "recv:" << UDT::getlasterror().getErrorMessage() << endl;
             break;
         }
         if ( bytes_read == 1 ) {
@@ -177,7 +178,7 @@ void *handle_to_udt(void *threadarg) {
         }
         if(bytes_read == 0) {
             if (my_args->debug)
-                cerr << my_args->thread_name << " got EOF" << endl;
+                std::cerr << my_args->thread_name << " got EOF" << endl;
             if(my_args->log){
                 fprintf(logfile, "%d Got %d bytes_read, exiting\n", my_args->id, bytes_read);
                 fclose(logfile);
@@ -225,7 +226,7 @@ void *udt_to_handle(void *threadarg) {
     FILE* logfile;
 
     if(my_args->log) {
-        string filename = my_args->logfile_dir + convert_int(my_args->id) + "_log.txt";
+        std::string filename = my_args->logfile_dir + convert_int(my_args->id) + "_log.txt";
         logfile = fopen(filename.c_str(), "w");
     }
 
@@ -247,7 +248,7 @@ void *udt_to_handle(void *threadarg) {
         }
 
         if (my_args->debug)
-                cerr << my_args->thread_name << " got EOF" << endl;
+                std::cerr << my_args->thread_name << " got EOF" << endl;
             
         int written_bytes;
         if(my_args->crypt != NULL) {
@@ -288,7 +289,7 @@ int run_sender(const UDR_Options &udr_options, unsigned char * passphrase, const
 
     std::string port_num = n_to_string(udr_options.port_num);
     if (0 != getaddrinfo(NULL, port_num.c_str(), &hints, &local)) {
-        cerr << udr_options.which_process << " incorrect network address.\n" << endl;
+        goptions.err() << " incorrect network address.\n" << endl;
         return 1;
     }
 
@@ -296,19 +297,17 @@ int run_sender(const UDR_Options &udr_options, unsigned char * passphrase, const
 
     freeaddrinfo(local);
 
-    if(udr_options.verbose) 
-        cerr << udr_options.which_process << " connecting to " << udr_options.host << ":" << udr_options.port_num << endl;
+    goptions.verb() << " connecting to " << udr_options.host << ":" << udr_options.port_num << endl;
     if (0 != getaddrinfo(udr_options.host.c_str(), port_num.c_str(), &hints, &peer)) {
-        cerr << udr_options.which_process << " incorrect server/peer address. " << udr_options.host << ":" << udr_options.port_num << endl;
+        goptions.err() << " incorrect server/peer address. " << udr_options.host << ":" << udr_options.port_num << endl;
         return 1;
     }
 
     if (UDT::ERROR == UDT::connect(client, peer->ai_addr, peer->ai_addrlen)) {
-        cerr << udr_options.which_process << " connect: " << UDT::getlasterror().getErrorMessage() << endl;
+        goptions.err() << " connect: " << UDT::getlasterror().getErrorMessage() << endl;
         return 1;
     }
-    if(udr_options.verbose) 
-        cerr << udr_options.which_process << " connected." << endl;
+    goptions.verb() << " connected." << endl;
 
     freeaddrinfo(peer);
 
@@ -326,14 +325,13 @@ int run_sender(const UDR_Options &udr_options, unsigned char * passphrase, const
         int ss;
         if (UDT::ERROR == (ss = UDT::send(client, cmd.c_str() + ssize, n - ssize, 0)))
         {
-            cerr << udr_options.which_process << " Send:" << UDT::getlasterror().getErrorMessage() << endl;
+            goptions.err() << " Send:" << UDT::getlasterror().getErrorMessage() << endl;
             break;
         }
 
         ssize += ss;
     }
-    if(udr_options.verbose) 
-        cerr << udr_options.which_process << " sent command of " << ssize << " bytes" << endl;
+    goptions.verb() << " sent command of " << ssize << " bytes" << endl;
 
     struct thread_data sender_to_udt;
     sender_to_udt.thread_name = "sender_to_udt";
@@ -370,15 +368,13 @@ int run_sender(const UDR_Options &udr_options, unsigned char * passphrase, const
 
     int rc1 = pthread_join(udt_to_sender_thread, NULL);
 
-    if(udr_options.verbose)
-        cerr << udr_options.which_process << " joined on udt_to_sender_thread " << rc1 << endl;
+    goptions.verb() << " joined on udt_to_sender_thread " << rc1 << endl;
 
     pthread_kill(sender_to_udt_thread, SIGUSR1);
 
     int rc2 = pthread_join(sender_to_udt_thread, NULL);
 
-    if(udr_options.verbose)
-        cerr << udr_options.which_process << " joined on sender_to_udt_thread " << rc2 << endl;
+    goptions.verb() << " joined on sender_to_udt_thread " << rc2 << endl;
 
     UDT::close(client);
     UDT::cleanup();
@@ -403,8 +399,8 @@ int run_receiver(const UDR_Options &udr_options) {
     // switch to turn on ip specification or not
     int specify_ip = !udr_options.specify_ip.empty();
 
-    if (udr_options.verbose && specify_ip)
-        cerr << "Specifying on specific ip: " << udr_options.specify_ip << endl;
+    if (specify_ip)
+        goptions.verb() << "Specifying on specific ip: " << udr_options.specify_ip << endl;
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_flags = AI_PASSIVE;
@@ -417,7 +413,7 @@ int run_receiver(const UDR_Options &udr_options) {
     bool bad_port = false;
 
     if(udr_options.start_port > udr_options.end_port){
-        cerr << udr_options.which_process << " ERROR: invalid port range: " << udr_options.start_port << " - " << udr_options.end_port << endl;;
+        goptions.err() << " ERROR: invalid port range: " << udr_options.start_port << " - " << udr_options.end_port << endl;;
         return 0;
     }
 
@@ -458,7 +454,7 @@ int run_receiver(const UDR_Options &udr_options) {
     }
 
     if(bad_port){
-        cerr << udr_options.which_process << " ERROR: could not bind to any port in range: " << udr_options.start_port << " - " << udr_options.end_port << endl;;
+        goptions.err() << " ERROR: could not bind to any port in range: " << udr_options.start_port << " - " << udr_options.end_port << endl;;
         return 0;
     }
 
@@ -474,11 +470,10 @@ int run_receiver(const UDR_Options &udr_options) {
     printf(" \n");
     fflush(stdout);
 
-    if(udr_options.verbose)
-        cerr << udr_options.which_process << " server is ready at port " << receiver_port << endl;
+    goptions.verb() << " server is ready at port " << receiver_port << endl;
 
     if (UDT::ERROR == UDT::listen(serv, 10)) {
-        cerr << udr_options.which_process << " listen: " << UDT::getlasterror().getErrorMessage() << endl;
+        goptions.err() << " listen: " << UDT::getlasterror().getErrorMessage() << endl;
         return 0;
     }
 
@@ -488,7 +483,7 @@ int run_receiver(const UDR_Options &udr_options) {
     UDTSOCKET recver;
 
     if (UDT::INVALID_SOCK == (recver = UDT::accept(serv, (sockaddr*)&clientaddr, &addrlen))) {
-        cerr << udr_options.which_process << " accept: " << UDT::getlasterror().getErrorMessage() << endl;
+        goptions.err() << " accept: " << UDT::getlasterror().getErrorMessage() << endl;
         return 0;
     }
 
@@ -516,8 +511,7 @@ int run_receiver(const UDR_Options &udr_options) {
 
     char * rsync_cmd;
     if(udr_options.server_connect){
-        if(udr_options.verbose)
-            cerr << udr_options.which_process << " server connect mode" << endl;
+        goptions.verb() << " server connect mode" << endl;
 
         rsync_cmd = (char *)malloc(100);
 
@@ -533,9 +527,7 @@ int run_receiver(const UDR_Options &udr_options) {
         strcpy(rsync_cmd, cmd);
     }
 
-    if(udr_options.verbose){
-        cerr << udr_options.which_process << " rsync cmd: " << rsync_cmd << endl;
-    }
+    goptions.verb() << " rsync cmd: " << rsync_cmd << endl;
 
     char ** sh_cmd = (char **)malloc(sizeof(char *) * 4);
     sh_cmd[0] = (char*)udr_options.shell_program.c_str();
@@ -555,9 +547,7 @@ int run_receiver(const UDR_Options &udr_options) {
         setuid(udr_options.rsync_uid);
     }
 
-    if(udr_options.verbose){
-        cerr << udr_options.which_process << " rsync pid: " << rsync_pid << endl;
-    }
+    goptions.verb() << " rsync pid: " << rsync_pid << endl;
 
     struct thread_data recv_to_udt;
     recv_to_udt.udt_socket = &recver;
@@ -603,11 +593,8 @@ int run_receiver(const UDR_Options &udr_options) {
     }
     pthread_create(&counter_thread, NULL, &monitor_timeout, &timeout_args);
 
-
-    if(udr_options.verbose){
-        cerr << udr_options.which_process << " waiting to join on recv_to_udt_thread" << endl;
-        cerr << udr_options.which_process << " ppid " << getppid() << " pid " << getpid() << endl;
-    }
+    goptions.verb() << " waiting to join on recv_to_udt_thread" << endl;
+    goptions.verb() << " ppid " << getppid() << " pid " << getpid() << endl;
 
     //going to poll if the ppid changes then we know it's exited and then we exit all of our threads and exit as well
     //also going to check if either thread is complete, if one is then the other should also be killed
@@ -640,31 +627,22 @@ int run_receiver(const UDR_Options &udr_options) {
         sleep(ppid_poll);
     }
 
-    if(udr_options.verbose){
-        cerr << udr_options.which_process << " Trying to close UDT socket" << endl;
-    }
+    goptions.verb() << " Trying to close UDT socket" << endl;
     UDT::close(recver);
     //int rc1 = pthread_join(recv_to_udt_thread, NULL);
     //if(udr_options.verbose){
     //fprintf(stderr, "[udr receiver] Joined recv_to_udt_thread %d\n", rc1);
     //}
 
-    if(udr_options.verbose){
-        cerr << udr_options.which_process << " Closed UDT socket" << endl;
-    }
-
-
+    goptions.verb() << " Closed UDT socket" << endl;
+    
     UDT::close(serv);
 
-    if(udr_options.verbose){
-        cerr << udr_options.which_process << " Closed serv UDT socket" << endl;
-    }
+    goptions.verb() << " Closed serv UDT socket" << endl;
 
     UDT::cleanup();
 
-    if(udr_options.verbose){
-        cerr << udr_options.which_process << " cleaned up" << endl;
-    }
+    goptions.verb() << " cleaned up" << endl;
 
     //int rc2 = pthread_join(udt_to_recv_thread, NULL);
 

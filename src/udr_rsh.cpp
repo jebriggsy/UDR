@@ -13,8 +13,10 @@
 #include <string.h>
 #include <string>
 #include <iostream>
+
 using std::cerr;
 using std::endl;
+using std::string;
 
 udr_rsh_remote::udr_rsh_remote():
     pump(0), child_waited(false)
