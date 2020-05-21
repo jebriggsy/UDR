@@ -459,12 +459,12 @@ int run_receiver(const UDR_Options &udr_options) {
     }
 
     auto key = udr_crypt::rand_bytes(PASSPHRASE_SIZE);
-    auto ekey = udr_crypt::encode_64(key);
+    auto ekey = udr_crypt::encode_hex(key);
     
     //stdout port number and password -- to send back to the client
-    std::cout << receiver_port << endl << ekey << std::endl << std::flush;
+    std::cout << receiver_port << " " << ekey << std::endl << std::flush;
     
-    goptions.verb() << " server is ready at port " << receiver_port << endl;
+    goptions.verb() << " server is ready at port " << receiver_port << " pw " << ekey << endl;
 
     if (UDT::ERROR == UDT::listen(serv, 10)) {
         goptions.err() << " listen: " << UDT::getlasterror().getErrorMessage() << endl;

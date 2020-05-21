@@ -233,9 +233,9 @@ int UDR_Options::get_options(int argc, char * argv[])
         usage();
     }
 
-    // all the non-options are the so-called rsync args
+    // all the non-options are the so-called extra args
     while(argv[optind])
-        rsync_args.push_back(argv[optind++]);
+        extra_args.push_back(argv[optind++]);
     
     // verify that timeout duration > 0
     if (timeout < 1){
@@ -251,12 +251,27 @@ int UDR_Options::get_options(int argc, char * argv[])
     }
 
     //Set which_process for debugging output
-    if (sflag)
+    if (sflag) {
         which_process = "[udr sender]";  // rsh initiator
-    else if (tflag)
+    }
+    else if (tflag) {
         which_process = "[udr receiver]";
-    else
+    }
+    else {
+        // original process must have the rsync cmd in extra args
         which_process = "[udr original]";
+        if (!extra_args.size() || extra_args[0] != "rsync") {
+            usage();
+        }
+        //check that -e/--rsh flag has not been used with rsync
+        for(size_t i = 1; i < extra_args.size(); i++){
+            const std::string &arg = extra_args[i];
+            if(arg.find("-e") == 0 || arg == "--rsh"){
+                cerr << "UDR ERROR: UDR overrides the -e, --rsh flag of rsync, so they cannot be used in the provided rsync command" << endl;
+                exit(1);
+            }
+        }
+    }
 
     if (verbose) {
         // print the command arguments
@@ -264,20 +279,12 @@ int UDR_Options::get_options(int argc, char * argv[])
     for(udr_args::iterator it=args.begin(); it != args.end(); ++it)
             cerr << " \"" << *it << '"';
     //cerr << which_process << " nonopt: ";
-    //for(udr_args::iterator it=rsync_args.begin(); it != rsync_args.end(); it++)
+    //for(udr_args::iterator it=extra_args.begin(); it != extra_args.end(); it++)
         //    cerr << " \"" << *it << '"';
         cerr << endl;
     }
 
-    //check that -e/--rsh flag has not been used with rsync
-    for(size_t i = 1; i < rsync_args.size(); i++){
-        const std::string &arg = rsync_args[i];
-        if(arg.find("-e") == 0 || arg == "--rsh"){
-            cerr << "UDR ERROR: UDR overrides the -e, --rsh flag of rsync, so they cannot be used in the provided rsync command" << endl;
-            exit(1);
-        }
-    }
-
+    
     return 1;
 }
 
@@ -318,7 +325,7 @@ void UDR_Options::get_host_username()
     bool src_double_colon = false;
 
     // destination is the last argument
-    const std::string dest = rsync_args.back();
+    const std::string dest = extra_args.back();
     parse_host_username(dest, dest_username, dest_host, dest_double_colon);
     bool dest_remote = dest_host != "";
 
@@ -326,9 +333,9 @@ void UDR_Options::get_host_username()
     // an option argument, but we assume that those
     // go backwards until find first option, we'll call those the source
     int src_num = 0;
-    for(size_t i = rsync_args.size() - 2; i > 0; i--){
+    for(size_t i = extra_args.size() - 2; i > 0; i--){
 //        fprintf(stderr, "i: %d argv: %s\n", i, argv[i]);
-        if(rsync_args[i][0] == '-')
+        if(extra_args[i][0] == '-')
             break;
 //            fprintf(stderr, "parsing: %s\n", argv[i]);
 //            fprintf(stderr, "src username: %s\n", src_username );
@@ -336,7 +343,7 @@ void UDR_Options::get_host_username()
         std::string next_src_username;
         std::string next_src_host;
         bool next_src_double_colon = false;
-        parse_host_username(rsync_args[i], next_src_username, next_src_host, next_src_double_colon);
+        parse_host_username(extra_args[i], next_src_username, next_src_host, next_src_double_colon);
 //            fprintf(stderr, "next src username: %s\n", next_src_username );
 //            fprintf(stderr, "next src host: %s\n", next_src_host);
         if(src_num == 0) {

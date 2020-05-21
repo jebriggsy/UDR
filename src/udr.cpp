@@ -44,7 +44,7 @@ static int run_udr_rsh_client(UDR_Options &options);
 static int run_udr_rsh_server(const UDR_Options &options);
 static std::string get_remote_udr_cmd(const UDR_Options &options);
 static std::string get_rsh_udr_cmd(const UDR_Options &options);
-static udr_args get_rsync_args(const UDR_Options &options);
+static udr_args get_extra_args(const UDR_Options &options);
 static void print_version();
 
 //only going to go from local -> remote and remote -> local, remote <-> remote maybe later, but local -> local doesn't make sense for UDR
@@ -79,7 +79,7 @@ int run_udr_main(UDR_Options &options)
 {
     // We are the main program.
 
-    if (!options.rsync_args.size())
+    if (!options.extra_args.size())
         usage();
 
     //get the host and username first
@@ -180,7 +180,7 @@ int run_udr_main(UDR_Options &options)
     }
 
     //Invoke rsync
-    udr_args args = get_rsync_args(options);
+    udr_args args = get_extra_args(options);
 
     pid_t local_rsync_pid = fork_exec("rsync", args);
     options.verb() << " rsync pid: " << local_rsync_pid << endl;
@@ -216,7 +216,7 @@ int run_udr_rsh_client(UDR_Options &options)
     }
 
     // target host is the last argument
-    udr_args args = options.rsync_args;
+    udr_args args = options.extra_args;
     options.host = args.front();
 
     // all the rest is the remote command
@@ -239,12 +239,12 @@ int run_udr_rsh_server(const UDR_Options &options)
 }
 
 // Get the argv to invoke rsync
-static udr_args get_rsync_args(const UDR_Options &options)
+static udr_args get_extra_args(const UDR_Options &options)
 {
      //parse the rsync options
     udr_args args;
 
-    args.push_back(options.rsync_args.front());
+    args.push_back(options.extra_args.front());
     // todo: make udr work with non-blocking io in its rsh role
     args.push_back("--blocking-io");
 
@@ -253,8 +253,8 @@ static udr_args get_rsync_args(const UDR_Options &options)
     args.push_back(get_rsh_udr_cmd(options));
 
     // add remaining rsync args from the command line
-    for (size_t i = 1; i < options.rsync_args.size(); i++)
-        args.push_back(options.rsync_args[i]);
+    for (size_t i = 1; i < options.extra_args.size(); i++)
+        args.push_back(options.extra_args[i]);
    return args;    
 }
 

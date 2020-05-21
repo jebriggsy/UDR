@@ -83,7 +83,7 @@ struct UDR_Options{
 
     // the rsync part of the command ine, starting with the rsync cmd itself.
     std::vector<std::string> args;  // args uptil rsync
-    std::vector<std::string> rsync_args; // rsync and following args
+    std::vector<std::string> extra_args; // rsync and following args
 private:
     std::ofstream nullstream;
 };
