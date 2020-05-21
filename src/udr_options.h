@@ -37,6 +37,7 @@ struct UDR_Options{
     std::ostream &err(int errnum);
     std::ostream &verb();
     std::ostream &dbg();
+    int get_verbosity() const {return verbose;}
     bool is_verbose() const {return verbose >= 1;}
     bool is_debug() const {return verbose >= 2;}
     bool is_debug2() const {return verbose >= 3;}

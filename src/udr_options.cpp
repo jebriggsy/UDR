@@ -131,6 +131,7 @@ int UDR_Options::get_options(int argc, char * argv[])
     udr_program_src = argv[0];    
     static struct option long_options[] = {
         {"verbose", no_argument, NULL, 'v'},
+        {"verbosity", required_argument, NULL, 0},
         {"version", no_argument, NULL, 0},
         {"ssh-port", required_argument, NULL, 'P'},
         {"start-port", required_argument, NULL, 'a'},
@@ -222,6 +223,9 @@ int UDR_Options::get_options(int argc, char * argv[])
             else if (strcmp("rsync-gid", long_options[option_index].name) == 0){
                 rsync_gid = parse_int(optarg, "rsync-gid");
             }
+            else if (strcmp("verbosity", long_options[option_index].name) == 0){
+                verbose = parse_int(optarg, "verbosity");
+            }
             break;
         default:
             fprintf(stderr, "Illegal argument: %c\n", ch);
@@ -273,14 +277,14 @@ int UDR_Options::get_options(int argc, char * argv[])
         }
     }
 
-    if (verbose) {
+    if (is_verbose()) {
         // print the command arguments
-    cerr << which_process << " args: ";
-    for(udr_args::iterator it=args.begin(); it != args.end(); ++it)
-            cerr << " \"" << *it << '"';
-    //cerr << which_process << " nonopt: ";
-    //for(udr_args::iterator it=extra_args.begin(); it != extra_args.end(); it++)
-        //    cerr << " \"" << *it << '"';
+        cerr << which_process << " args: ";
+        for(udr_args::iterator it=args.begin(); it != args.end(); ++it)
+                cerr << " \"" << *it << '"';
+        //cerr << which_process << " nonopt: ";
+        //for(udr_args::iterator it=extra_args.begin(); it != extra_args.end(); it++)
+            //    cerr << " \"" << *it << '"';
         cerr << endl;
     }
 
