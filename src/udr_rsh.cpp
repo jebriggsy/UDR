@@ -14,8 +14,6 @@
 #include <string>
 #include <iostream>
 
-#include <openssl/rand.h>
-
 
 using std::cerr;
 using std::endl;
@@ -160,18 +158,17 @@ bool udr_rsh_remote::bind_server()
 
 void udr_rsh_remote::send_port()
 {
-    unsigned char rand_pp[PASSPHRASE_SIZE];
-    if (goptions.encryption)
-        RAND_bytes((unsigned char *) rand_pp, PASSPHRASE_SIZE);
+    std::string password;
+    if (goptions.encryption) {
+        auto key = udr_crypt::rand_bytes(PASSPHRASE_SIZE);
+        password = udr_crypt::encode_hex(key);
+    } else {
+        udr_crypt::key_t key(PASSPHRASE_SIZE, 0);
+        password = udr_crypt::encode_hex(key);
+    }
 
     //stdout port number and password -- to send back to the client
-    printf("%d ", serv_port);
-
-    for(int i = 0; i < PASSPHRASE_SIZE; i++) {
-        printf("%02x", rand_pp[i]);
-    }
-    printf(" \n");
-    fflush(stdout);
+    std::cout << serv_port << " " << password << std::endl << std::flush;
 }
 
 

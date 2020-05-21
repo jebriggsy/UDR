@@ -18,6 +18,7 @@ and limitations under the License.
 
 #include "udr_threads.h"
 #include "udr_util.h"
+#include "udr_crypt.h"
 
 #include <udt.h>
 
@@ -39,9 +40,6 @@ and limitations under the License.
 #include <sys/select.h>
 
 #include <sstream>
-
-#include <openssl/rand.h>
-
 
 using std::string;
 using std::endl;
@@ -282,7 +280,7 @@ void *udt_to_handle(void *threadarg) {
 }
 
 
-int run_sender(const UDR_Options &udr_options, unsigned char * passphrase, const std::string &cmd) {
+int run_sender(const UDR_Options &udr_options, const std::string &passphrase, const std::string &cmd) {
     UDT::startup();
     struct addrinfo hints, *local, *peer;
 
@@ -354,10 +352,8 @@ int run_sender(const UDR_Options &udr_options, unsigned char * passphrase, const
     udt_to_sender.logfile_dir = local_logfile_dir;
 
     if(udr_options.encryption){
-        udr_crypt encrypt(EVP_ENCRYPT, PASSPHRASE_SIZE, (unsigned char *) passphrase,
-        (char*)udr_options.encryption_type.c_str());
-        udr_crypt decrypt(EVP_DECRYPT, PASSPHRASE_SIZE, (unsigned char *) passphrase,
-        (char*)udr_options.encryption_type.c_str());
+        udr_crypt encrypt(udr_crypt::ENCRYPT, udr_options.encryption_type, passphrase);
+        udr_crypt decrypt(udr_crypt::DECRYPT, udr_options.encryption_type, passphrase);
         // free_key(passphrase);
         sender_to_udt.crypt = &encrypt;
         udt_to_sender.crypt = &decrypt;
@@ -462,18 +458,12 @@ int run_receiver(const UDR_Options &udr_options) {
         return 0;
     }
 
-    unsigned char rand_pp[PASSPHRASE_SIZE];
-    int success = RAND_bytes((unsigned char *) rand_pp, PASSPHRASE_SIZE);
-
+    auto key = udr_crypt::rand_bytes(PASSPHRASE_SIZE);
+    auto ekey = udr_crypt::encode_64(key);
+    
     //stdout port number and password -- to send back to the client
-    printf("%s ", receiver_port.c_str());
-
-    for(int i = 0; i < PASSPHRASE_SIZE; i++) {
-        printf("%02x", rand_pp[i]);
-    }
-    printf(" \n");
-    fflush(stdout);
-
+    std::cout << receiver_port << endl << ekey << std::endl << std::flush;
+    
     goptions.verb() << " server is ready at port " << receiver_port << endl;
 
     if (UDT::ERROR == UDT::listen(serv, 10)) {
@@ -570,10 +560,8 @@ int run_receiver(const UDR_Options &udr_options) {
     udt_to_recv.logfile_dir = local_logfile_dir;
 
     if(udr_options.encryption){
-        udr_crypt encrypt(EVP_ENCRYPT, PASSPHRASE_SIZE, rand_pp,
-        (char*)udr_options.encryption_type.c_str());
-        udr_crypt decrypt(EVP_DECRYPT, PASSPHRASE_SIZE, rand_pp,
-        (char*)udr_options.encryption_type.c_str());
+        udr_crypt encrypt(udr_crypt::ENCRYPT, udr_options.encryption_type, key);
+        udr_crypt decrypt(udr_crypt::DECRYPT, udr_options.encryption_type, key);
         recv_to_udt.crypt = &encrypt;
         udt_to_recv.crypt = &decrypt;
     }

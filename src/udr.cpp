@@ -201,7 +201,7 @@ int run_udr_main(UDR_Options &options)
 int run_udr_rsh_client(UDR_Options &options)
 {
     char hex_pp[HEX_PASSPHRASE_SIZE];
-    unsigned char passphrase[PASSPHRASE_SIZE];
+    hex_pp[0] = '\0';
 
     if (options.encryption) {
         options.verb() << " Key filename: " << options.key_filename << endl;
@@ -213,12 +213,6 @@ int run_udr_rsh_client(UDR_Options &options)
         fscanf(key_file, "%s", hex_pp);
         fclose(key_file);
         remove(options.key_filename.c_str());
-
-        for (unsigned int i = 0; i < strlen(hex_pp); i = i + 2) {
-            unsigned int c;
-            sscanf(&hex_pp[i], "%02x", &c);
-            passphrase[i / 2] = (unsigned char) c;
-        }
     }
 
     // target host is the last argument
@@ -231,7 +225,7 @@ int run_udr_rsh_client(UDR_Options &options)
 
     options.verb() << " rsh host: " << options.host << " cmd: \"" << remote_command << "\"" << endl;
 
-    run_sender(options, passphrase, remote_command);
+    run_sender(options, hex_pp, remote_command);
 
     options.verb () << " run_sender done" << endl;
     return 0;

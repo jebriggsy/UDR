@@ -97,7 +97,7 @@ struct thread_data{
 void *handle_to_udt(void *threadarg);
 void *udt_to_handle(void *threadarg);
 
-int run_sender(const UDR_Options &udr_options, unsigned char * passphrase, const std::string &remote_cmd);
+int run_sender(const UDR_Options &udr_options, const std::string &passphrase, const std::string &remote_cmd);
 int run_receiver(const UDR_Options &udr_options);
 
 #endif
