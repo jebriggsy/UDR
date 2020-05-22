@@ -99,12 +99,12 @@ int UDR_Options::parse_int(const char *p, const char *argname)
 // logging and verbosity helpers
 ostream & UDR_Options::err()
 {
-    return cerr << which_process << ' ';
+    return cerr << which_process << "(error) ";
 }
 
 ostream & UDR_Options::err(int errnum)
 {
-    return cerr << which_process << " error " << errnum << ":" << strerror(errnum) << " ";
+    return cerr << which_process << "(error " << errnum << ":" << strerror(errnum) << ") ";
 }
 ostream & UDR_Options::verb()
 {
@@ -115,7 +115,13 @@ ostream & UDR_Options::verb()
 ostream & UDR_Options::dbg()
 {
     if (is_debug())
-        return cerr << which_process << ' ';
+        return cerr << which_process << "(dbg) ";
+    return nullstream;
+}
+ostream & UDR_Options::dbg2()
+{
+    if (is_debug2())
+        return cerr << which_process << "(dbg2) ";
     return nullstream;
 }
 
