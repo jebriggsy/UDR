@@ -35,6 +35,7 @@ and limitations under the License.
 #include "udr_threads.h"
 #include "udr_util.h"
 #include "udr_options.h"
+#include "udr_rsh.h"
 #include "version.h"
 
 using namespace std;
@@ -235,7 +236,11 @@ int run_udr_rsh_client(UDR_Options &options)
 // over which rsync will communicate
 int run_udr_rsh_server(const UDR_Options &options)
 {
-    return run_receiver(options);
+    udr_rsh_remote remote;
+    remote.run();
+    return remote.get_child_status();
+
+    //return run_receiver(options);
 }
 
 // Get the argv to invoke rsync
@@ -271,8 +276,11 @@ std::string get_remote_udr_cmd(const UDR_Options &options) {
     args.push_back("-d");
     args.push_back(n_to_string(options.timeout));
 
-    if (options.verbose)
-        args.push_back("-v");
+    if (options.get_verbosity()) {
+        std::ostringstream os;
+        os << "--verbosity=" << options.get_verbosity();
+        args.push_back(os.str());
+    }
 
     if (!options.specify_ip.empty()) {
         args.push_back("-i");
@@ -297,8 +305,11 @@ std::string get_rsh_udr_cmd(const UDR_Options &options) {
     // construct the rsh argument to rsync
     udr_args rsh_args;
     rsh_args.push_back(options.udr_program_src);
-    if (options.verbose)
-        rsh_args.push_back("-v");
+    if (options.get_verbosity()) {
+        std::ostringstream os;
+        os << "--verbosity=" << options.get_verbosity();
+        rsh_args.push_back(os.str());
+    }
 
     // 'sender' part of rsh, connect to remote udt
     // tells udr to mimic rsh in the way it parses arguments

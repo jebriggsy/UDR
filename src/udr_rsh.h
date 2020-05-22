@@ -18,9 +18,9 @@ public:
     udr_buffer();
     ~udr_buffer();
     // make sure that at leas s bytes are in buffer or return false
-    bool require(size_t s);
+    bool set_size(size_t s);
     // report how much of buffer was actually used, so that it may potentially grow
-    void used(size_t s);  
+    void set_used(size_t s);  
     // get buffer
     char *get();
     // get size
@@ -55,21 +55,23 @@ private:
     bool h_read(size_t &byte_read);
     bool h_write(char *data, size_t len, size_t &bytes_written);
 
-
+    bool adjust_handles();
+    static bool fd_set_blocking(int fd, bool blocking);
 
     // thread objects for either direction
     udr_memberthread<udr_socketpump> udt_read_thread;
     udr_memberthread<udr_socketpump> udt_write_thread;
     const std::string name;
-    const UDTSOCKET socket;
-    const int hread;
-    const int hwrite;
+    const UDTSOCKET socket = 0;
+    const int hread = -1;
+    const int hwrite = -1;
+    const int udt_timeout = 10;  // timeout in milliseconds
 
-    bool s_err, s_eof;
-    bool h_rerr, h_werr, h_eof;
+    bool s_err = false, s_eof = false;
+    bool h_rerr = false, h_werr = false, h_eof = false;
     udr_buffer h_readbuf, h_cryptbuf;
     udr_buffer s_readbuf, s_cryptbuf;
-    bool do_stop;
+    bool do_stop = false;
 };
 
 
@@ -79,6 +81,7 @@ public:
     udr_rsh_remote();
     ~udr_rsh_remote();
     bool run();
+    int get_child_status() const {return child_waited?child_status:-1;}
 
 private:
     bool bind_server();
@@ -92,17 +95,16 @@ private:
     bool is_stdin_closed(int timeout);
     bool poll_child(bool non_blocking);
 
-    UDTSOCKET serv;
-    UDTSOCKET socket;
-    int serv_port;
-    unsigned char rand_pp[PASSPHRASE_SIZE];
-    int from_child, to_child;
-    int child_pid;
+    UDTSOCKET serv = 0;
+    UDTSOCKET socket = 0;
+    int serv_port = 0;
+    int from_child = -1, to_child = -1;
+    int child_pid = 0;
 
-    udr_socketpump *pump;
+    udr_socketpump *pump = nullptr;
 
-    bool child_waited;
-    int child_status;
+    bool child_waited = false;
+    int child_status = -1;
 };
 
 #endif  /* UDR_RSH_H */

@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/fcntl.h>
 
 #include <string.h>
 #include <string>
@@ -19,16 +20,8 @@ using std::cerr;
 using std::endl;
 using std::string;
 
-udr_rsh_remote::udr_rsh_remote():
-    pump(0), child_waited(false)
-{
-    serv = socket = 0;
-    serv_port = 0;
-    memset(rand_pp, 0, sizeof(rand_pp));
-    from_child = to_child  = -1;
-    child_pid = 0;
-    child_status = -1;
-}
+udr_rsh_remote::udr_rsh_remote()
+{}
 
 udr_rsh_remote::~udr_rsh_remote()
 {
@@ -37,9 +30,13 @@ udr_rsh_remote::~udr_rsh_remote()
 
 bool udr_rsh_remote::run()
 {   
+    goptions.dbg() << "udr_rsh_remote::run() started" << std::endl;
+
     UDR_Options &options = goptions;
     if (!bind_server())
         return false;
+
+    goptions.dbg() << "sending bound port info" << std::endl;
     send_port();
     if (!accept( options.timeout > 0 ? options.timeout*1000 : 0))
         return false;
@@ -58,31 +55,47 @@ bool udr_rsh_remote::run()
 
     // create the socketpump
     pump = new udr_socketpump("pump", socket, from_child, to_child);
+
+    // disable SIGPIPE, so that the pump gets error instead of
+    // signal when writing
+    signal(SIGPIPE, SIG_IGN);
+
+    goptions.dbg() << "starting socket pump" << std::endl;
     if (!pump->start()) {
         // child process isnt explicitly killed, it will die once it doesnt receive input/output
         return false;
     }
-
+    
     // now, wait for any of: child exit, parent exit, pipe error
-    while(pump->should_stop()) {
+    // poll parent and sleep 10ms
+    while(! pump->should_stop()) {
         // is parent still alive?
         bool stdin_closed = is_stdin_closed(10);
         if (stdin_closed) 
         {
             // just leave things and exit.  There is no one to report exit status to, or anything.
-            return false;
+            goptions.err() << "STDIN closed, exiting" << std::endl;
+            break;
         }
     }
     // close socket and pipe, wait for pump to drain and exit 
+    goptions.dbg() << "stopping socket pump" << std::endl;
     pump->stop();
+    goptions.dbg() << "joining socket pump" << std::endl;
     pump->join();
+    
     close_handles();
     
     // get the exit status
+    goptions.dbg() << "joining child process" << std::endl;
     poll_child(false);
+    goptions.dbg() << "child exit status " << child_status << std::endl;
+    goptions.dbg() << "udr_rsh_remote::run() ended" << std::endl;
     return true;
 }
 
+// TODO: Change this mechanic to be more straightforward.
+// Bind to all interfaces by default.
 bool udr_rsh_remote::bind_server()
 {
     addrinfo hints;
@@ -147,7 +160,7 @@ bool udr_rsh_remote::bind_server()
         return false;
     }
     if (UDT::ERROR == UDT::listen(serv, 10)) {
-        goptions.err()  << "listen: " << UDT::getlasterror().getErrorMessage() << endl;
+        goptions.err(UDT::getlasterror())  << "UDT::listen()" << endl;
         return false;
     }
     goptions.verb() << "server is ready at port " << receiver_port << endl;
@@ -168,6 +181,7 @@ void udr_rsh_remote::send_port()
     }
 
     //stdout port number and password -- to send back to the client
+    goptions.dbg() << "sending port and pw to client" << std::endl;
     std::cout << serv_port << " " << password << std::endl << std::flush;
 }
 
@@ -197,7 +211,7 @@ bool udr_rsh_remote::accept(int ms)
                 break;
         } else {
             if (UDT::INVALID_SOCK == (socket = UDT::accept(serv, (sockaddr*)&clientaddr, &addrlen))) {
-                goptions.err() << "accept: " << UDT::getlasterror().getErrorMessage() << endl;
+                goptions.err(UDT::getlasterror()) << "UDT::accept()" << endl;
             } else
                 result = true;
             break;
@@ -238,7 +252,7 @@ std::string udr_rsh_remote::udt_recv_string()
     for( ;; ) {
         int bytes_read = UDT::recv( socket , buf , 1 , 0 );
         if ( bytes_read == UDT::ERROR ){
-            goptions.err() << "udt_recv_string:" << UDT::getlasterror().getErrorMessage() << endl;
+            goptions.err(UDT::getlasterror()) << "udt_recv_string()" << endl;
             return "";
         }
         if ( bytes_read == 1 ) {
@@ -277,7 +291,7 @@ bool udr_rsh_remote::start_child(const std::string &cmd)
     args.push_back("-c");
     args.push_back(cmd);
     child_pid =  fork_exec("remote command", args, to_child, from_child);
-    goptions.verb() << "rsync pid: " << child_pid << endl;
+    goptions.verb() << "child pid: " << child_pid << endl;
     return child_pid != 0;
 }
 
@@ -321,13 +335,16 @@ bool udr_rsh_remote::is_stdin_closed(int timeout)
     {
         char buf;
         ssize_t nread = read(STDIN_FILENO, &buf, 1); 
-        if (nread == 0)
+        if (nread == 0) {
+            goptions.verb() << "stdin EOF" << endl;
             return true;
+        }
         if (nread < 0)
             goptions.err(errno) << " in read(STDIN_FILENO)" << endl;
         else
             goptions.err() << "unexpected read(STDIN_FILENO):  " << (int)buf << endl;
     }
+            
     return false;
 }
 
@@ -344,23 +361,22 @@ udr_socketpump::udr_socketpump(const char *_name, UDTSOCKET sock, int readhandle
         socket(sock),
         hread(readhandle),
         hwrite(writehandle)
-{
-    s_eof = s_err = false;
-    h_eof = h_rerr = h_werr = false;
-    do_stop = false;
-}
+{}
 
 bool udr_socketpump::start()
 {
+    if (!adjust_handles())
+        return false;
     if (!udt_read_thread.start())
         return false;
     if (!udt_write_thread.start())
     {
-        udt_read_thread.cancel();
+        stop();
+        udt_read_thread.join();
         return false;
     }
 
-    return false;
+    return true;
 }
 
 // request a graceful stop of the pump
@@ -390,42 +406,53 @@ void *udr_socketpump::udt_read_func()
         bool ok = s_read(bytes_read);
         if (!ok)
             continue;
-        if (!bytes_read)
+        if (!bytes_read) {
+            //goptions.dbg2() << "s_read timeout" << std::endl;
             continue; // timeout, try again or quit
-        s_readbuf.used(bytes_read);
+        }
+        goptions.dbg2() << "s_read " << bytes_read << " bytes" << std::endl;
+        s_readbuf.set_used(bytes_read);
         // TODO add crypt step
         char *data = s_readbuf.get();
         size_t data_written = 0;
         // write the data until there is an error
         do
         {
-            h_write(data, s_readbuf.get_size(), data_written);
-        } while (!h_werr && data_written < s_readbuf.get_size());
+            h_write(data, s_readbuf.get_used(), data_written);
+        } while (!h_werr && data_written < s_readbuf.get_used());
+        goptions.dbg2() << "h_write() wrote " << bytes_read << " bytes" << std::endl;
     }
+    goptions.dbg2() << "udt_read_func() exit" << std::endl;
     return NULL;
 }
 
 void *udr_socketpump::udt_write_func()
 {
     // read data until told to stop or there is error or no more data
-     while (!(h_eof || h_rerr || s_err || do_stop))
+    while (!(h_eof || h_rerr || s_err || do_stop))
     {
         size_t bytes_read;
         bool ok = h_read(bytes_read);
         if (!ok)
             continue;
-        if (!bytes_read)
+        if (!bytes_read) {
+            //goptions.dbg2() << "h_read timeout" << std::endl;
             continue; // timeout, try again or quit
-        h_readbuf.used(bytes_read);
+        }
+        goptions.dbg2() << "h_read " << bytes_read << " bytes" << std::endl;
+        h_readbuf.set_used(bytes_read);
         // TODO add crypt step
         // write the data until there is an error
         char *data = h_readbuf.get();
         size_t data_written = 0;
         do
         {
-            s_write(data, h_readbuf.get_size(), data_written);
-        } while (!s_err && data_written < h_readbuf.get_size());
+            s_write(data, h_readbuf.get_used(), data_written);
+        } while (!s_err && data_written < h_readbuf.get_used());
+        goptions.dbg2() << "s_write " << data_written << " bytes" << std::endl;
+        
     }
+    goptions.dbg() << "udt_write_func() exit" << std::endl;
     return NULL;
 }
 
@@ -483,25 +510,30 @@ bool udr_socketpump::h_write(char *data, size_t len, size_t &bytes_written)
    
     // poll
     int r = poll(&fd, 1, 100);
-    if (r == 0) 
-        return false; // timeout
+    if (r == 0) {
+        //goptions.dbg2() << "h_write poll() timeout" << endl;
+        return true; // timeout
+    }
    
     if (r < 0)
     {
         if (errno == EINTR) {
+            //goptions.dbg2() << "h_write poll() timeout2" << endl;
             return true;  // treat this as timeout too
         }
         goptions.err(errno) << "in poll() to handle" << endl;
         h_werr = true;
         return false;
     }
-    size_t wrote = write(hwrite, data + bytes_written, len - bytes_written);
+    ssize_t wrote = write(hwrite, data + bytes_written, len - bytes_written);
     if (wrote > 0) {
         bytes_written += wrote;
         return true;
     } else {
-        if (errno == EAGAIN || errno == EINTR)
+        if (errno == EAGAIN || errno == EINTR) {
+            //goptions.dbg2() << "ih_write write() timeout" << endl;
             return true;
+        }
         h_werr = true;
         goptions.err(errno) << "in write() to handle" << endl;
         return false;
@@ -520,7 +552,7 @@ bool udr_socketpump::s_read(size_t &bytes_read)
             bytes_read = 0;
             return true;
         }
-        goptions.err() << "udt recv error: " << UDT::getlasterror().getErrorMessage() << endl;
+        goptions.err(UDT::getlasterror()) << "UDT:recv()" << endl;
         s_err = true;
         return false;
     }
@@ -545,11 +577,51 @@ bool udr_socketpump::s_write(char *data, size_t len, size_t &bytes_written)
             bytes_written= 0;
             return true;
         }
-        goptions.err() << " UDT::send(): " << UDT::getlasterror().getErrorMessage() << endl;
+        goptions.err(UDT::getlasterror()) << " UDT::send(): " << endl;
         s_err = true;
         return false;
     }
     bytes_written += wrote;
+    return true;
+}
+
+bool udr_socketpump::adjust_handles()
+{
+    // make UDR socket timeout
+    if (socket) {
+        int to = udt_timeout;
+        int err = UDT::setsockopt(socket, 0, UDT_SNDTIMEO, &to, sizeof(to));
+        if (err == UDT::ERROR) {
+            goptions.err(UDT::getlasterror()) << "UDT_SNDTIMEO" << endl;
+            return false;
+        }
+        err = UDT::setsockopt(socket, 0, UDT_RCVTIMEO, &to, sizeof(to));
+        if (err) {
+            goptions.err(UDT::getlasterror()) << "UDT_SNDTIMEO" << endl;
+            return false;
+        } 
+    }
+    return fd_set_blocking(hwrite, false);
+}
+
+bool udr_socketpump::fd_set_blocking(int fd, bool blocking)
+{
+    /* Save the current flags */
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1) {
+        goptions.err(errno);
+        return false;
+    }
+
+    if (blocking)
+        flags &= ~O_NONBLOCK;
+    else
+        flags |= O_NONBLOCK;
+    flags = fcntl(fd, F_SETFL, flags) != -1;
+    if (flags == -1) {
+        goptions.err(errno);
+        return false;
+    }
     return true;
 }
 
@@ -581,15 +653,21 @@ size_t udr_buffer::get_used()
     return bufused;
 }
 
-bool udr_buffer::require(size_t s)
+bool udr_buffer::set_size(size_t s)
 {
-    if (s <= get_size())
+    size_t oldsize = get_size();
+    if (s <= oldsize)
         return true;
+    goptions.dbg2() << "resize buf from " << oldsize << " to " << s <<"bytes"<< std::endl;
     char *nbuf;
-    if (buf)
+    if (buf) {
         nbuf = (char*)realloc(buf, s);
-    else
+    }
+    else{
         nbuf = (char*)malloc(s);
+        if (nbuf)
+            memcpy(nbuf, sbuf, oldsize);
+    }
     if (nbuf) {
         buf = nbuf;
         bufsize = s;
@@ -598,10 +676,10 @@ bool udr_buffer::require(size_t s)
     return false;
 }
     
-void udr_buffer::used(size_t s)
+void udr_buffer::set_used(size_t s)
 {
     // growth policy.  If we used more than three quarters of the buf, double the buffer
     if (s > ((get_size() * 3) >> 2))
-        require(get_size() * 2);
+        set_size(get_size() * 2);
     bufused = s;
 }
