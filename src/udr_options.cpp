@@ -31,6 +31,63 @@ and limitations under the License.
 
 using namespace std;
 
+
+// classes to tee an ostream to two places
+
+class teebuf: public std::streambuf
+{
+public:
+    // Construct a streambuf which tees output to both input
+    // streambufs.
+    teebuf(std::streambuf * sb1, std::streambuf * sb2)
+        : sb1(sb1)
+        , sb2(sb2)
+    {
+    }
+private:
+    // This tee buffer has no buffer. So every character "overflows"
+    // and can be put directly into the teed buffers.
+    virtual int overflow(int c)
+    {
+        if (c == EOF)
+        {
+            return !EOF;
+        }
+        else
+        {
+            int const r1 = sb1->sputc(c);
+            int const r2 = sb2->sputc(c);
+            return r1 == EOF || r2 == EOF ? EOF : c;
+        }
+    }
+    
+    // Sync both teed buffers.
+    virtual int sync()
+    {
+        int const r1 = sb1->pubsync();
+        int const r2 = sb2->pubsync();
+        return r1 == 0 && r2 == 0 ? 0 : -1;
+    }   
+private:
+    std::streambuf * sb1;
+    std::streambuf * sb2;
+};
+
+class teestream : public std::ostream
+{
+public:
+    // Construct an ostream which tees output to the supplied
+    // ostreams.
+    teestream(std::ostream & o1, std::ostream & o2);
+private:
+    teebuf tbuf;
+};
+
+teestream::teestream(std::ostream & o1, std::ostream & o2)
+  : std::ostream(&tbuf)
+  , tbuf(o1.rdbuf(), o2.rdbuf())
+{}
+
 void usage() {
     fprintf(stderr, "usage: udr [UDR options] rsync [rsync options]\n\n");
     fprintf(stderr, "UDR options:\n");
@@ -72,6 +129,7 @@ UDR_Options::UDR_Options()
     rsync_gid = 0;
 
     nullstream.setstate(std::ios_base::badbit);
+    
 }
 
 int UDR_Options::parse_port(const char *p, const char *argname)
@@ -99,29 +157,34 @@ int UDR_Options::parse_int(const char *p, const char *argname)
 // logging and verbosity helpers
 ostream & UDR_Options::err()
 {
-    return cerr << which_process << "(error) ";
+    return *mycerr << which_process << "(error) ";
 }
 
 ostream & UDR_Options::err(int errnum)
 {
-    return cerr << which_process << "(error " << errnum << ":" << strerror(errnum) << ") ";
+    return *mycerr << which_process << "(error " << errnum << ":" << strerror(errnum) << ") ";
 }
+ostream &UDR_Options::err(UDT::ERRORINFO &err)
+{
+    return *mycerr << which_process << "(UDT error " << err.getErrorCode() << ":" << err.getErrorMessage() << ") ";
+}
+
 ostream & UDR_Options::verb()
 {
     if (is_verbose())
-        return cerr << which_process << ' ';
+        return *mycerr << which_process << ' ';
     return nullstream;
 }
 ostream & UDR_Options::dbg()
 {
     if (is_debug())
-        return cerr << which_process << "(dbg) ";
+        return *mycerr << which_process << "(dbg) ";
     return nullstream;
 }
 ostream & UDR_Options::dbg2()
 {
     if (is_debug2())
-        return cerr << which_process << "(dbg2) ";
+        return *mycerr << which_process << "(dbg2) ";
     return nullstream;
 }
 
@@ -261,11 +324,16 @@ int UDR_Options::get_options(int argc, char * argv[])
     }
 
     //Set which_process for debugging output
+
     if (sflag) {
         which_process = "[udr sender]";  // rsh initiator
     }
     else if (tflag) {
         which_process = "[udr receiver]";
+        //logstream.open("/tmp/udr_recv.log");
+        //mycerr = new teestream(*mycerr, logstream);
+        //mycerr = &logstream;
+
     }
     else {
         // original process must have the rsync cmd in extra args

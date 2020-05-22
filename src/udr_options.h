@@ -25,6 +25,8 @@ and limitations under the License.
 #include <netdb.h>
 #include <limits.h>
 
+#include <udt.h>
+
 typedef std::vector<std::string> udr_args;
 
 struct UDR_Options{
@@ -35,6 +37,7 @@ struct UDR_Options{
     int parse_int(const char *arg, const char *argname);
     std::ostream &err() ;
     std::ostream &err(int errnum);
+    std::ostream &err(UDT::ERRORINFO &);
     std::ostream &verb();
     std::ostream &dbg();
     std::ostream &dbg2();
@@ -88,7 +91,10 @@ struct UDR_Options{
     std::vector<std::string> extra_args; // rsync and following args
 private:
     std::ofstream nullstream;
+    std::ofstream logstream;
+    std::ostream *mycerr = &std::cerr;
 };
+
 
 void usage();
 
