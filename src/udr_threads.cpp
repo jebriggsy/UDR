@@ -105,7 +105,7 @@ void print_bytes(FILE* file, const void *object, size_t size) {
 }
 
 string convert_int(int number) {
-    std::stringstream ss;
+    std::ostringstream ss;
     ss << number;
     return ss.str();
 }

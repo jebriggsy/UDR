@@ -66,7 +66,7 @@ public:
         {}
 
 private:
-    void * thread_func()
+    virtual void * thread_func() override
     {
         return (inst.*member)();
     }
