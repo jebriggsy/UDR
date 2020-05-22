@@ -8,8 +8,10 @@ ifndef arch
 	arch = AMD64
 endif
 
-CXXFLAGS = -Wall -finline-functions -g
-CPPFLAGS = -D$(os) -I../udtproject/udt4/src 
+#CXXFLAGS = -Wall -finline-functions -g
+CXXFLAGS = -Wall  -g
+CPPFLAGS = -D$(os) -I../udtproject/udt4/src -DDEBUG
+LDFLAGS = -g
 
 ifeq ($(arch), IA32)
 	CPPFLAGS += -DIA32 
@@ -28,7 +30,7 @@ ifeq ($(arch), SPARC)
 	CPPFLAGS += -DSPARC
 endif
 
-LDFLAGS = -L../src
+LDFLAGS += -L../src
 LDLIBS = ../udtproject/udt4/src/libudt.a -lstdc++ -lpthread -lm -lssl -lcrypto
 
 ifeq ($(os), UNIX)
