@@ -631,9 +631,9 @@ bool udr_socketpump::h_read(size_t &bytes_read)
         return false;
     }
 
-    bytes_read = read(hread, h_readbuf.get(), h_readbuf.get_size());
+    ssize_t bytes = read(hread, h_readbuf.get(), h_readbuf.get_size());
 
-    if(bytes_read < 0 ){
+    if(bytes < 0 ){
         if (errno == EAGAIN || errno == EINTR) {
             // timeout or signal interrupt
             return false;
@@ -642,6 +642,7 @@ bool udr_socketpump::h_read(size_t &bytes_read)
         h_rerr = true;
         return false;
     }
+    bytes_read = bytes;
     if(bytes_read == 0) {
         goptions.dbg() << " got EOF from handle" << endl;
         h_eof = true;
