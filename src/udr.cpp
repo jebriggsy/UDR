@@ -218,6 +218,10 @@ int run_udr_rsh_client(UDR_Options &options)
 
     // target host is the last argument
     udr_args args = options.extra_args;
+    if (!args.size()) {
+        options.err() << "remote hostname missing" << endl;
+        return -1;
+    }
     options.host = args.front();
 
     // all the rest is the remote command
@@ -313,8 +317,7 @@ std::string get_rsh_udr_cmd(const UDR_Options &options) {
 
     // 'sender' part of rsh, connect to remote udt
     // tells udr to mimic rsh in the way it parses arguments
-    rsh_args.push_back("--sender");
-    rsh_args.push_back(n_to_string(options.port_num));
+    rsh_args.push_back("--sender=" + n_to_string(options.port_num));
     
     if (options.encryption) {
         rsh_args.push_back("-n");
