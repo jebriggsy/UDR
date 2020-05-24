@@ -53,7 +53,7 @@ void udr_rsh_base::close(bool abortive)
     }
     if (h1 != -1)
         ::close(h1);
-    if (h2 != -1)
+    if (h2 != h1 && h2 != -1)
         ::close(h2);
 
 }
@@ -86,10 +86,19 @@ bool udr_rsh_base::start_pump(UDTSOCKET s, int h_read, int h_write)
 bool udr_rsh_base::start_child(const std::string &purpose, const std::string &cmd)
 {
     udr_args args;
-    args.push_back(goptions.shell_program);
-    args.push_back("-c");
-    args.push_back(cmd);
-    child_pid =  fork_exec("remote command", args, to_child, from_child);
+    std::string shell = goptions.shell_program;
+    args.push_back(get_progname(shell));
+    if (cmd.size()) {
+        args.push_back("-c");
+        args.push_back(cmd);
+        child_pid =  fork_exec("remote command", shell, args, to_child, from_child);
+    } else {
+        // mark the shell as a login shell by convention
+        args[0] = "-" + args[0];
+        // force an interactive shell
+        //args.push_back("-i");
+        child_pid =  fork_pty("remote command", shell, args, to_child, from_child);
+    }
     goptions.verb() << "child pid: " << child_pid << endl;
     return child_pid != 0;
 }

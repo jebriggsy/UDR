@@ -39,6 +39,8 @@ pid_t fork_exec(const std::string &what, const std::string &cmd, const udr_args 
 pid_t fork_exec(const std::string &what, const udr_args &args, int &p_to_c, int &c_to_p);
 pid_t fork_exec(const std::string &what, const std::string &cmd, const udr_args &args, int &p_to_c, int &c_to_p);
 pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp);
+pid_t fork_pty(const std::string &what, const std::string &cmd, const udr_args &args, int &p_to_c, int &c_to_p);
+pid_t fork_pty(const char *program, char* argv[], int * ptc, int * ctp);
 int get_server_connection(const std::string &host, int port, const std::string &udr_cmd, char * line, int line_size);
 
 // join argv into a shell command

@@ -31,6 +31,8 @@ and limitations under the License.
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <netinet/in.h>
 #include <netdb.h>
@@ -128,6 +130,18 @@ pid_t fork_exec(const std::string &what, const std::string &cmd, const udr_args 
     return pid;
 }
 
+pid_t fork_pty(const std::string &what, const std::string &cmd, const udr_args &args, int &p_to_c, int &c_to_p)
+{
+    print_args(what, args);
+    char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
+    for(unsigned i=0; i<args.size(); i++)
+        argv[i] = (char*)args[i].c_str();
+    argv[args.size()] = 0;
+    pid_t pid = fork_pty(cmd.c_str(), argv, &p_to_c, &c_to_p);
+    free(argv);
+    return pid;
+}
+
 pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp){
     pid_t pid;
 
@@ -194,6 +208,65 @@ pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp){
             *ctp = child_to_parent[0];
         }
     }
+    return pid;
+}
+
+pid_t fork_pty(const char *program, char* argv[], int * ptc, int * ctp){
+    pid_t pid;
+
+    // create pty
+    int master = posix_openpt(O_RDWR);
+    if (master == -1) {
+        goptions.err(errno) << "posix_openpt()" << endl;
+        exit(EXIT_FAILURE);
+    }
+    if (ptc)
+        *ptc = master;
+    if (ctp)
+        *ctp = master;
+
+    if (grantpt(master)) {
+        goptions.err(errno) << "grant()" << endl;
+        exit(EXIT_FAILURE);
+    }
+    if (unlockpt(master)) {
+        goptions.err(errno) << "unlockpt()" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    pid = fork();
+
+    if(pid == 0){
+        if (-1 == setsid()) {
+            goptions.err(errno) << "setsid()" << endl;
+            exit(EXIT_FAILURE);
+        }
+        int slave = open(ptsname(master), O_RDWR);
+        if (slave == -1) {
+            goptions.err(errno) << "open()" << endl;
+            exit(EXIT_FAILURE);
+        }
+        close(master);
+        if (-1 == dup2(slave, STDIN_FILENO)) {
+            goptions.err(errno) << "dup2()" << endl;
+            exit(EXIT_FAILURE);
+        }
+        if (-1 == dup2(slave, STDOUT_FILENO)) {
+            goptions.err(errno) << "dup2()" << endl;
+            exit(EXIT_FAILURE);
+        }
+        close(slave);
+
+        execvp(program, argv);
+        // Uh oh, we failed
+        goptions.err() << "execvp error: " << strerror(errno) << endl;
+        exit(errno);
+    }
+    else if(pid == -1){
+        goptions.err() <<  "Error starting " <<  program << " : " << strerror(errno) << endl;
+        exit(errno);
+    }
+    
     return pid;
 }
 
