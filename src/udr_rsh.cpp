@@ -20,13 +20,158 @@ using std::cerr;
 using std::endl;
 using std::string;
 
-udr_rsh_remote::udr_rsh_remote()
-{}
 
-udr_rsh_remote::~udr_rsh_remote()
+// udr_rsh_base definitions
+udr_rsh_base::~udr_rsh_base()
 {
-    delete pump;
+    // must join threads or else program crashes
+    if (pump){
+        pump->stop();
+        pump->join();
+    }
+    close();
 }
+
+void udr_rsh_base::close(bool abortive)
+{
+    UDTSOCKET s = socket;
+    socket = 0;
+    int h1 = from_child;
+    int h2 = to_child;
+    from_child = to_child = -1;
+    if (s){
+        goptions.dbg2() << "closing udt sock " << s << (abortive?" (abortive)":"") << std::endl;
+        if (abortive) {
+            // This is an abortive close.  Forego the normal shutdown
+            // procedure
+            struct linger l;
+            l.l_onoff = 1;
+            l.l_linger = 0;
+            UDT::setsockopt(s, 0, UDT_LINGER, &l, sizeof(l));
+        }
+        UDT::close(s);
+    }
+    if (h1 != -1)
+        ::close(h1);
+    if (h2 != -1)
+        ::close(h2);
+
+}
+
+bool udr_rsh_base::get_child_status(int &status) const
+{
+    if (child_waited)
+        status = child_status;
+    else
+        status = -1;  // maybe something else?
+    return child_waited;
+}
+
+int udr_rsh_base::get_child_status() const
+{
+    if (child_waited)
+        return child_status;
+    else
+        return  -1;  // maybe something else?
+}
+
+bool udr_rsh_base::start_pump(UDTSOCKET s, int h_read, int h_write)
+{
+    goptions.dbg() << "starting socket pump" << std::endl;
+    pump.reset(new udr_socketpump(s, h_read, h_write));
+    // signal when writing
+    return pump->start();
+}
+
+bool udr_rsh_base::start_child(const std::string &purpose, const std::string &cmd)
+{
+    udr_args args;
+    args.push_back(goptions.shell_program);
+    args.push_back("-c");
+    args.push_back(cmd);
+    child_pid =  fork_exec("remote command", args, to_child, from_child);
+    goptions.verb() << "child pid: " << child_pid << endl;
+    return child_pid != 0;
+}
+
+
+// check if the child is alive.  return false if it is dead
+bool udr_rsh_base::poll_child(bool non_blocking)
+{
+    if (!child_pid)
+        return false;
+    if (child_waited)
+        return false;
+    int status;
+    pid_t res = waitpid(child_pid, &status, non_blocking ? WNOHANG : 0);
+    if (res == -1)
+    {
+        goptions.err(errno) << " in waitpid()" << endl;
+        return false;
+    }
+    if (res == 0)
+        return true;
+    // chid has exited
+    child_waited = true;
+    if (WIFEXITED(status)) 
+        child_status = WEXITSTATUS(status);
+    else
+        child_status = -1;
+    return false;
+}
+
+
+// send a null terminated string over udt
+bool udr_rsh_base::udt_send_string(const std::string &str)
+{
+    size_t total_size = str.size() + 1; // include terminating null
+    size_t total_sent = 0;
+    while(total_sent < total_size) {
+        int bytes_sent = UDT::send( socket , str.c_str() + total_sent, total_size - total_sent , 0 );
+        if ( bytes_sent == UDT::ERROR ){
+            if (UDT::getlasterror().getErrorCode() == UDT::ERRORINFO::ETIMEOUT)
+                continue;
+            goptions.err(UDT::getlasterror()) << "udt_send_string()" << endl;
+            return false;
+        }
+        total_sent += bytes_sent;
+    }
+    return true;
+}
+
+
+// receive a null terminated string, which is ow rsh_local sends the command to run
+bool udr_rsh_base::udt_recv_string(std::string &result)
+{
+    char buf[ 2 ];
+    buf[ 1 ] = '\0';
+
+    string str = "";
+
+    for( ;; ) {
+        int bytes_read = UDT::recv( socket , buf , 1 , 0 );
+        if ( bytes_read == UDT::ERROR ){
+            if (UDT::getlasterror().getErrorCode() == UDT::ERRORINFO::ETIMEOUT)
+                continue;
+            goptions.err(UDT::getlasterror()) << "udt_recv_string()" << endl;
+            return false;
+        }
+        if ( bytes_read == 1 ) {
+            if ( buf[ 0 ] == '\0' )
+                break;
+            str += buf[0];
+        }
+        else {
+            goptions.err() << "udt_recv_string: EOF" << endl;
+            return false;
+        }
+    }
+    result = str;
+    return true;
+}
+
+// rsh remote methods   
+
 
 bool udr_rsh_remote::run()
 {   
@@ -41,8 +186,11 @@ bool udr_rsh_remote::run()
     if (!accept( options.timeout > 0 ? options.timeout*1000 : 0))
         return false;
 
-    std::string command = get_command(udt_recv_string());
-    if (!start_child(command))
+    std::string command;
+    if (!udt_recv_string(command))
+        return false;
+    command = get_command(command);
+    if (!start_child("rsh target", command))
         return false;
 
     //now if we're in server mode need to drop privileges if specified
@@ -53,28 +201,26 @@ bool udr_rsh_remote::run()
         setuid(options.rsync_uid);
     }
 
-    // create the socketpump
-    pump = new udr_socketpump("pump", socket, from_child, to_child);
-
     // disable SIGPIPE, so that the pump gets error instead of
     // signal when writing
     signal(SIGPIPE, SIG_IGN);
 
-    goptions.dbg() << "starting socket pump" << std::endl;
-    if (!pump->start()) {
+    if (!start_pump(socket, from_child, to_child)) {
         // child process isnt explicitly killed, it will die once it doesnt receive input/output
         return false;
     }
     
     // now, wait for any of: child exit, parent exit, pipe error
     // poll parent and sleep 10ms
+    bool abortive = false;
     while(! pump->should_stop()) {
         // is parent still alive?
         bool stdin_closed = is_stdin_closed(10);
         if (stdin_closed) 
         {
             // just leave things and exit.  There is no one to report exit status to, or anything.
-            goptions.err() << "STDIN closed, exiting" << std::endl;
+            goptions.dbg() << "STDIN closed, exiting" << std::endl;
+            abortive = true;
             break;
         }
     }
@@ -84,12 +230,13 @@ bool udr_rsh_remote::run()
     goptions.dbg() << "joining socket pump" << std::endl;
     pump->join();
     
-    close_handles();
+    close(abortive);
     
     // get the exit status
     goptions.dbg() << "joining child process" << std::endl;
     poll_child(false);
-    goptions.dbg() << "child exit status " << child_status << std::endl;
+
+    goptions.dbg() << "child exit status " << get_child_status() << std::endl;
     goptions.dbg() << "udr_rsh_remote::run() ended" << std::endl;
     return true;
 }
@@ -225,50 +372,6 @@ bool udr_rsh_remote::accept(int ms)
     return result;
 }
 
-void udr_rsh_remote::close_handles()
-{
-    if (to_child >= 0) {
-        close(to_child);
-        to_child = -1;
-    }
-    if (from_child >= 0) {
-        close(from_child);
-        from_child = -1;
-    }
-    if (socket) {
-        UDT::close(socket);
-        socket = 0;
-    }
-}
-
-// receive a null terminated string, which is ow rsh_local sends the command to run
-std::string udr_rsh_remote::udt_recv_string()
-{
-    char buf[ 2 ];
-    buf[ 1 ] = '\0';
-
-    string str = "";
-
-    for( ;; ) {
-        int bytes_read = UDT::recv( socket , buf , 1 , 0 );
-        if ( bytes_read == UDT::ERROR ){
-            goptions.err(UDT::getlasterror()) << "udt_recv_string()" << endl;
-            return "";
-        }
-        if ( bytes_read == 1 ) {
-            if ( buf[ 0 ] == '\0' )
-                break;
-            str += buf[0];
-        }
-        else {
-            goptions.err() << "udt_recv_string: EOF" << endl;
-            return "";
-        }
-    }
-    return str;
-}
-
-
 std::string udr_rsh_remote::get_command(const std::string &cmd)
 {
     if(goptions.server_connect){
@@ -282,41 +385,6 @@ std::string udr_rsh_remote::get_command(const std::string &cmd)
         }
     }
     return cmd;
-}
-
-bool udr_rsh_remote::start_child(const std::string &cmd)
-{
-    udr_args args;
-    args.push_back(goptions.shell_program);
-    args.push_back("-c");
-    args.push_back(cmd);
-    child_pid =  fork_exec("remote command", args, to_child, from_child);
-    goptions.verb() << "child pid: " << child_pid << endl;
-    return child_pid != 0;
-}
-
-
-// check if the child is alive.  return false if it is dead
-bool udr_rsh_remote::poll_child(bool non_blocking)
-{
-    if (child_waited)
-        return false;
-    int status;
-    pid_t res = waitpid(child_pid, &status, non_blocking ? WNOHANG : 0);
-    if (res == -1)
-    {
-        goptions.err(errno) << " in waitpid()" << endl;
-        return false;
-    }
-    if (res == 0)
-        return true;
-    // chid has exited
-    child_waited = true;
-    if (WIFEXITED(status)) 
-        child_status = WEXITSTATUS(status);
-    else
-        child_status = -1;
-    return false;
 }
 
 
@@ -336,7 +404,7 @@ bool udr_rsh_remote::is_stdin_closed(int timeout)
         char buf;
         ssize_t nread = read(STDIN_FILENO, &buf, 1); 
         if (nread == 0) {
-            goptions.verb() << "stdin EOF" << endl;
+            goptions.verb() << "STDIN EOF" << endl;
             return true;
         }
         if (nread < 0)
@@ -348,16 +416,98 @@ bool udr_rsh_remote::is_stdin_closed(int timeout)
     return false;
 }
 
+// udr_rsl_local class
+
+udr_rsh_local::udr_rsh_local(int hread, int hwrite):
+    h_read(hread), h_write(hwrite)
+{}
+
+udr_rsh_local::~udr_rsh_local()
+{}
+
+
+bool udr_rsh_local::run(const std::string &host, int port, const std::string &cmd)
+{
+    if (!connect(host, port, 0))
+        return false;
+
+    if (!udt_send_string(cmd))
+        return false;
+
+    if (!start_pump(socket, h_read, h_write))
+        return false;
+
+    // now, wait for any of: child exit, parent exit, pipe error
+    // poll parent and sleep 10ms
+    while(! pump->should_stop()) {
+        // is parent still alive?
+        // todo, use condition variables for timed wait from worker threads
+        usleep(10000);
+    }
+    // close socket and pipe, wait for pump to drain and exit 
+    goptions.dbg() << "stopping socket pump" << std::endl;
+    pump->stop();
+    goptions.dbg() << "joining socket pump" << std::endl;
+    pump->join();
+    
+    close();
+    
+    // get the exit status
+    goptions.dbg() << "joining child process" << std::endl;
+    poll_child(false);
+
+    goptions.dbg() << "child exit status " << get_child_status() << std::endl;
+    goptions.dbg() << "udr_rsh_remote::run() ended" << std::endl;
+    return true;
+}
+
+bool udr_rsh_local::connect(const std::string &host, int port, int ms)
+{
+    struct addrinfo hints, *peer=nullptr;
+    const std::string s_port = n_to_string(port);
+
+    // initialize the hints with the same kind of info that will be
+    // passed to UDT::socket()
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_flags = (AI_V4MAPPED | AI_ADDRCONFIG);
+   
+    goptions.dbg() << " connecting to " << host << ":" << port << endl;
+    if (0 != getaddrinfo(host.c_str(), s_port.c_str(), &hints, &peer)) {
+        goptions.err() << " incorrect server/peer address. " << host << ":" << port << endl;
+        return false;
+    }
+
+    UDTSOCKET client;
+    for(struct addrinfo *item = peer; item; item=item->ai_next) {
+        client = UDT::socket(item->ai_family, item->ai_socktype, 0);
+        int fail = UDT::connect(client, item->ai_addr, item->ai_addrlen);
+        if (fail) {
+            goptions.err(UDT::getlasterror()) << "connect failed" << std::endl;
+            UDT::close(client);
+            client = 0;
+        } else {
+            break;
+        }
+    }
+    freeaddrinfo(peer);
+    if (client) {
+        goptions.verb() << " connected to " << host << ":" << port << endl;
+        socket = client;
+    }
+    return client != 0;
+}
 
 
 //////////////////////////////////////////////////////////////////////////////
 // udr_socketpump impl.
 // a the socketpump class, running two threads
 
-udr_socketpump::udr_socketpump(const char *_name, UDTSOCKET sock, int readhandle, int writehandle) :
+udr_socketpump::udr_socketpump(UDTSOCKET sock, int readhandle, int writehandle) :
         udt_read_thread(*this, &udr_socketpump::udt_read_func),
         udt_write_thread(*this, &udr_socketpump::udt_write_func),
-        name(_name),
         socket(sock),
         hread(readhandle),
         hwrite(writehandle)
@@ -493,7 +643,7 @@ bool udr_socketpump::h_read(size_t &bytes_read)
         return false;
     }
     if(bytes_read == 0) {
-        goptions.dbg() << name << " got EOF from handle" << endl;
+        goptions.dbg() << " got EOF from handle" << endl;
         h_eof = true;
         return false;
     }
@@ -552,15 +702,21 @@ bool udr_socketpump::s_read(size_t &bytes_read)
             bytes_read = 0;
             return true;
         }
-        goptions.err(UDT::getlasterror()) << "UDT:recv()" << endl;
-        s_err = true;
-        return false;
+        if (UDT::getlasterror().getErrorCode() == UDT::ERRORINFO::ECONNLOST) {
+            // UDT don't have half close semantic (shutdown).  remote close results in
+            // connection lost
+            rs = 0;
+        } else {
+            goptions.err(UDT::getlasterror()) << "UDT:recv()" << endl;
+            s_err = true;
+            return false;
+        }
     }
 
     bytes_read = rs;
     if (rs == 0) {
         s_eof = true;
-        goptions.dbg() << name << " got EOF" << endl;
+        goptions.dbg() << "got EOF from UDT socket" << endl;
         return false;
     }
     return true;
@@ -601,7 +757,9 @@ bool udr_socketpump::adjust_handles()
             return false;
         } 
     }
-    return fd_set_blocking(hwrite, false);
+    //set_blocking(hread, false);
+    //return fd_set_blocking(hwrite, false);
+    return true;
 }
 
 bool udr_socketpump::fd_set_blocking(int fd, bool blocking)

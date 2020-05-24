@@ -229,8 +229,10 @@ int run_udr_rsh_client(UDR_Options &options)
     std::string remote_command = args_join(args); 
 
     options.verb() << " rsh host: " << options.host << " cmd: \"" << remote_command << "\"" << endl;
+    udr_rsh_local local(STDIN_FILENO, STDOUT_FILENO);
+    local.run(goptions.host, goptions.port_num, remote_command);
 
-    run_sender(options, hex_pp, remote_command);
+    //run_sender(options, hex_pp, remote_command);
 
     options.verb () << " run_sender done" << endl;
     return 0;
@@ -242,8 +244,9 @@ int run_udr_rsh_server(const UDR_Options &options)
 {
     udr_rsh_remote remote;
     remote.run();
-    return remote.get_child_status();
-
+    int status;
+    remote.get_child_status(status);
+    return status;
     //return run_receiver(options);
 }
 

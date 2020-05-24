@@ -6,6 +6,7 @@
 #include "udr_crypt.h"
 
 #include <string>
+#include <memory>
 
 #include <poll.h>
 
@@ -38,7 +39,7 @@ private:
 class udr_socketpump
 {
 public:
-    udr_socketpump(const char *_name, UDTSOCKET sock, int readhandle, int writehandle);
+    udr_socketpump(UDTSOCKET sock, int readhandle, int writehandle);
     bool start();
     bool should_stop();
     void stop();
@@ -61,7 +62,6 @@ private:
     // thread objects for either direction
     udr_memberthread<udr_socketpump> udt_read_thread;
     udr_memberthread<udr_socketpump> udt_write_thread;
-    const std::string name;
     const UDTSOCKET socket = 0;
     const int hread = -1;
     const int hwrite = -1;
@@ -75,36 +75,73 @@ private:
 };
 
 
-class udr_rsh_remote
+class udr_rsh_base
 {
 public:
-    udr_rsh_remote();
-    ~udr_rsh_remote();
+    bool get_child_status(int &status) const;
+    int get_child_status() const;
+    virtual ~udr_rsh_base();
+    virtual void close(bool abortive=false);
+
+protected:
+    bool start_pump(UDTSOCKET s, int h_read, int h_write);
+    bool start_child(const std::string &what, const std::string &cmd);
+    bool poll_child(bool non_blocking);
+
+    bool udt_send_string(const std::string &str);
+    bool udt_recv_string(std::string &result);
+
+    int from_child = -1, to_child = -1;
+    std::unique_ptr<udr_socketpump> pump;
+    UDTSOCKET socket = 0;
+
+private:
+    int child_pid = 0;
+    bool child_waited = false;
+    int child_status = -1;
+};
+
+
+// This class manages the remote part of udr_rsh, listening to UDT connection,
+// running child process, pumping data and shutting down connection etc.
+class udr_rsh_remote : public udr_rsh_base
+{
+public:
     bool run();
-    int get_child_status() const {return child_waited?child_status:-1;}
 
 private:
     bool bind_server();
     void send_port();
     bool accept(int ms);
+
+    std::string get_command(const std::string &cmd);
+    bool is_stdin_closed(int timeout);
+
+    UDTSOCKET serv = 0;
+    int serv_port = 0;
+
+};
+
+// This class represents the local part of an rsh.
+// It will connect to a remote UDT socket and pump data
+// to the handles provided.
+class udr_rsh_local : public udr_rsh_base
+{
+public:
+    udr_rsh_local(int hread=-1, int hwrite=-1);
+    virtual ~udr_rsh_local();
+    bool run(const std::string &host, int port, const std::string &cmd);
+
+private:
+    bool connect(const std::string &host, int port, int ms);
     void close_handles();
 
     std::string udt_recv_string();
     std::string get_command(const std::string &cmd);
-    bool start_child(const std::string &cmd);
-    bool is_stdin_closed(int timeout);
-    bool poll_child(bool non_blocking);
 
-    UDTSOCKET serv = 0;
-    UDTSOCKET socket = 0;
-    int serv_port = 0;
-    int from_child = -1, to_child = -1;
-    int child_pid = 0;
-
-    udr_socketpump *pump = nullptr;
-
-    bool child_waited = false;
-    int child_status = -1;
+    int h_read = -1, h_write = -1;
 };
+
+
 
 #endif  /* UDR_RSH_H */
