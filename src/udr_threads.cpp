@@ -647,10 +647,6 @@ int run_receiver(const UDR_Options &udr_options) {
 }
 
 
-udr_thread::udr_thread() :
-    thread(0), done(false), started(false), joined(false)
-{}
-
 udr_thread::~udr_thread()
 {}
 
@@ -675,24 +671,24 @@ bool udr_thread::cancel()
     return true;
 }
 
-bool udr_thread::join(void * &retval)
+bool udr_thread::join(void * &_retval)
 {
+    if (!started || joined)
+        return false;
+    goptions.dbg2() << "joining thread " << thread << endl;
     if (pthread_join(thread, &retval)) {
         goptions.err() << "join() failed. " << endl;
         return false;
     }
     joined = true;
+    _retval = retval;
     return true;
 }
 
 bool udr_thread::join()
 {
     void *retval;
-    if (pthread_join(thread, &retval)) {
-        goptions.err() << "join() failed. " << endl;
-        return false;
-    }
-    return true;
+    return join(retval);
 }
 
 void * udr_thread::_thread_func(void* inst)

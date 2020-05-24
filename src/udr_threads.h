@@ -36,7 +36,6 @@ const int max_block_size = 64*1024; //what should this be? maybe based on UDT bu
 class udr_thread
 {
 public:
-    udr_thread();
     virtual ~udr_thread();
 
     bool start();
@@ -50,9 +49,10 @@ public:
 private:
     virtual void *thread_func() = 0;
     static void *_thread_func(void*);
-    bool done;
-    bool started;
-    bool joined;
+    bool done = false;
+    bool started = false;
+    bool joined = false;
+    void *retval = nullptr;
 };
 
 // a subclass that invokes an instance method on a class
