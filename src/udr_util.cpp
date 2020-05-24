@@ -63,26 +63,67 @@ static void print_args(const std::string &what, const udr_args &args)
         goptions.verb() << " argv[" << i << "]: " << args[i] << endl;
 }
 
+// get the rightmost path entry
+std::string get_progname(const std::string &cmd)
+{
+    std::string result;
+    size_t s = cmd.find_last_of('/');
+    if (s != std::string::npos) 
+        return cmd.substr(s+1, std::string::npos);
+    return cmd;
+}
+
 pid_t fork_exec(const std::string &what, const udr_args &args)
+{
+    if (!args.size())
+    {
+        goptions.err() << "missing command for '" << what << "'" << endl;
+        exit(EXIT_FAILURE);
+    }
+    std::string cmd = args[0];
+    udr_args args2;
+    args2.push_back(get_progname(cmd));
+    for (size_t i = 1; i< args.size(); ++i)
+        args2.push_back(args[i]);
+    return fork_exec(what, cmd, args2);
+
+}
+
+pid_t fork_exec(const std::string &what, const std::string &cmd, const udr_args &args)
 {
     print_args(what, args);
     char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
     for(unsigned i=0; i<args.size(); i++)
         argv[i] = (char*)args[i].c_str();
     argv[args.size()] = 0;
-    pid_t pid = fork_execvp(argv[0], argv, 0, 0);
+    pid_t pid = fork_execvp(cmd.c_str(), argv, 0, 0);
     free(argv);
     return pid;
 }
 
 pid_t fork_exec(const std::string &what, const udr_args &args, int &p_to_c, int &c_to_p)
 {
+    if (!args.size())
+    {
+        goptions.err() << "missing command for '" << what << "'" << endl;
+        exit(EXIT_FAILURE);
+    }
+    std::string cmd = args[0];
+    udr_args args2;
+    args2.push_back(get_progname(cmd));
+    for (size_t i = 1; i< args.size(); ++i)
+        args2.push_back(args[i]);
+    return fork_exec(what, cmd, args2, p_to_c, c_to_p);
+}
+
+pid_t fork_exec(const std::string &what, const std::string &cmd, const udr_args &args, int &p_to_c, int &c_to_p)
+{
     print_args(what, args);
     char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
     for(unsigned i=0; i<args.size(); i++)
         argv[i] = (char*)args[i].c_str();
     argv[args.size()] = 0;
-    pid_t pid = fork_execvp(argv[0], argv, &p_to_c, &c_to_p);
+    pid_t pid = fork_execvp(cmd.c_str(), argv, &p_to_c, &c_to_p);
     free(argv);
     return pid;
 }

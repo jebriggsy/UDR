@@ -130,6 +130,9 @@ UDR_Options::UDR_Options()
 
     nullstream.setstate(std::ios_base::badbit);
     
+    const char *shell = getenv("SHELL");
+    if (shell)
+        shell_program = shell;
 }
 
 int UDR_Options::parse_port(const char *p, const char *argname)
