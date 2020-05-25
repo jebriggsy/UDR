@@ -2,13 +2,10 @@
 #ifndef UDR_RSH_H
 #define UDR_RSH_H
 
-#include "udr_crypt.h"
-
 #include <string>
-#include <memory>
 #include <thread>
-
-#include <poll.h>
+#include <mutex>
+#include <condition_variable>
 
 #include <udt.h>
 
@@ -47,6 +44,9 @@ public:
     bool pipe_defunct();
     bool socket_defunct();
 
+    std::mutex mutex;
+    std::condition_variable cond;
+
 private:
     // thread funcs for either direction
     void *udt_read_func();
@@ -67,11 +67,13 @@ private:
     const int hwrite = -1;
     const int udt_timeout = 10;  // timeout in milliseconds
 
+    // helper to set flags in a synchronous way
+    void set_flag(bool &flag);
     bool s_err = false, s_eof = false;
     bool h_rerr = false, h_werr = false, h_eof = false;
+    bool do_stop = false;
     udr_buffer h_readbuf, h_cryptbuf;
     udr_buffer s_readbuf, s_cryptbuf;
-    bool do_stop = false;
 };
 
 

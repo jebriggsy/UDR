@@ -2,18 +2,19 @@
 
 #include "udr_rsh.h"
 #include "udr_util.h"
+#include "udr_crypt.h"
 
-//#include <sys/socket.h>
-//#include <netinet/in.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/fcntl.h>
+#include <poll.h>
 
 #include <string.h>
 #include <string>
 #include <iostream>
+#include <chrono>
 
 
 using std::cerr;
@@ -219,18 +220,25 @@ bool udr_rsh_remote::run()
         return false;
     }
     
-    // now, wait for any of: child exit, parent exit, pipe error
-    // poll parent and sleep 10ms
+    // now, Wait until pump wants to shut down, but check every 100ms if
+    // the parent has exited.  Child exit results in the pump shutting
+    // down because the read and write handles close.
     bool abortive = false;
-    while(! pump->should_stop()) {
-        // is parent still alive?
-        bool stdin_closed = is_stdin_closed(10);
-        if (stdin_closed) 
-        {
-            // just leave things and exit.  There is no one to report exit status to, or anything.
-            goptions.dbg() << "STDIN closed, exiting" << std::endl;
-            abortive = true;
-            break;
+    {
+        std::unique_lock<std::mutex> lock(pump->mutex);
+
+        while(! pump->should_stop()) {
+            // is parent still alive?
+            bool stdin_closed = is_stdin_closed(0);
+            if (stdin_closed) 
+            {
+                // just leave things and exit.  There is no one to report exit status to, or anything.
+                goptions.dbg() << "STDIN closed, exiting" << std::endl;
+                // to not wait in limbo state
+                abortive = true;
+                break;
+            }
+            pump->cond.wait_for(lock, std::chrono::milliseconds(100));
         }
     }
     // close socket and pipe, wait for pump to drain and exit 
@@ -448,11 +456,12 @@ bool udr_rsh_local::run(const std::string &host, int port, const std::string &cm
 
     // now, wait for any of: child exit, parent exit, pipe error
     // poll parent and sleep 10ms
-    while(! pump->should_stop()) {
-        // is parent still alive?
-        // todo, use condition variables for timed wait from worker threads
-        usleep(10000);
+    {
+        std::unique_lock<std::mutex> lock(pump->mutex);
+        while(!pump->should_stop())
+            pump->cond.wait(lock);
     }
+
     // close socket and pipe, wait for pump to drain and exit 
     goptions.dbg() << "stopping socket pump" << std::endl;
     pump->stop();
@@ -524,17 +533,17 @@ bool udr_socketpump::start()
 {
     if (!adjust_handles())
         return false;
-    auto rf = [](udr_socketpump *p){return p->udt_read_func();};
-    auto wf = [](udr_socketpump *p){return p->udt_write_func();};
-    udt_read_thread = std::thread(rf, this);
-    udt_write_thread = std::thread(wf, this);
+    auto rf = [&](){return udt_read_func();};
+    auto wf = [&](){return udt_write_func();};
+    udt_read_thread = std::thread(rf);
+    udt_write_thread = std::thread(wf);
     return true;
 }
 
 // request a graceful stop of the pump
 void udr_socketpump::stop()
 {
-    do_stop = true;
+    set_flag(do_stop);
 }
 
 // wait for the pump threads to end
@@ -612,6 +621,12 @@ void *udr_socketpump::udt_write_func()
     return NULL;
 }
 
+void udr_socketpump::set_flag(bool &flag)
+{
+    const std::lock_guard<std::mutex> lock(mutex);
+    flag = true;
+    cond.notify_all();    
+}
 
 // read from handle.  Indicate err, eof, or timeout
 bool udr_socketpump::h_read(size_t &bytes_read)
@@ -633,7 +648,7 @@ bool udr_socketpump::h_read(size_t &bytes_read)
             return true;  // treat this as timeout too
         }
         goptions.err(errno) << "in poll() from handle" << endl;
-        h_rerr = true;
+        set_flag(h_rerr);
         return false;
     }
 
@@ -645,13 +660,13 @@ bool udr_socketpump::h_read(size_t &bytes_read)
             return false;
         }
         goptions.err(errno) << "in read() from handle " << endl;
-        h_rerr = true;
+        set_flag(h_rerr);
         return false;
     }
     bytes_read = bytes;
     if(bytes_read == 0) {
         goptions.dbg() << " got EOF from handle" << endl;
-        h_eof = true;
+        set_flag(h_eof);
         return false;
     }
     return true;
@@ -679,7 +694,7 @@ bool udr_socketpump::h_write(char *data, size_t len, size_t &bytes_written)
             return true;  // treat this as timeout too
         }
         goptions.err(errno) << "in poll() to handle" << endl;
-        h_werr = true;
+        set_flag(h_werr);
         return false;
     }
     ssize_t wrote = write(hwrite, data + bytes_written, len - bytes_written);
@@ -691,8 +706,8 @@ bool udr_socketpump::h_write(char *data, size_t len, size_t &bytes_written)
             //goptions.dbg2() << "ih_write write() timeout" << endl;
             return true;
         }
-        h_werr = true;
         goptions.err(errno) << "in write() to handle" << endl;
+        set_flag(h_werr);
         return false;
     }
     return true;
@@ -715,15 +730,15 @@ bool udr_socketpump::s_read(size_t &bytes_read)
             rs = 0;
         } else {
             goptions.err(UDT::getlasterror()) << "UDT:recv()" << endl;
-            s_err = true;
+            set_flag(s_err);
             return false;
         }
     }
 
     bytes_read = rs;
     if (rs == 0) {
-        s_eof = true;
         goptions.dbg() << "got EOF from UDT socket" << endl;
+        set_flag(s_eof);
         return false;
     }
     return true;
@@ -741,7 +756,7 @@ bool udr_socketpump::s_write(char *data, size_t len, size_t &bytes_written)
             return true;
         }
         goptions.err(UDT::getlasterror()) << " UDT::send(): " << endl;
-        s_err = true;
+        set_flag(s_err);
         return false;
     }
     bytes_written += wrote;
