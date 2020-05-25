@@ -2,11 +2,11 @@
 #ifndef UDR_RSH_H
 #define UDR_RSH_H
 
-#include "udr_threads.h"
 #include "udr_crypt.h"
 
 #include <string>
 #include <memory>
+#include <thread>
 
 #include <poll.h>
 
@@ -60,8 +60,8 @@ private:
     static bool fd_set_blocking(int fd, bool blocking);
 
     // thread objects for either direction
-    udr_memberthread<udr_socketpump> udt_read_thread;
-    udr_memberthread<udr_socketpump> udt_write_thread;
+    std::thread udt_write_thread;
+    std::thread udt_read_thread;
     const UDTSOCKET socket = 0;
     const int hread = -1;
     const int hwrite = -1;

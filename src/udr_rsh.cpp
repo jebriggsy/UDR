@@ -515,8 +515,6 @@ bool udr_rsh_local::connect(const std::string &host, int port, int ms)
 // a the socketpump class, running two threads
 
 udr_socketpump::udr_socketpump(UDTSOCKET sock, int readhandle, int writehandle) :
-        udt_read_thread(*this, &udr_socketpump::udt_read_func),
-        udt_write_thread(*this, &udr_socketpump::udt_write_func),
         socket(sock),
         hread(readhandle),
         hwrite(writehandle)
@@ -526,15 +524,10 @@ bool udr_socketpump::start()
 {
     if (!adjust_handles())
         return false;
-    if (!udt_read_thread.start())
-        return false;
-    if (!udt_write_thread.start())
-    {
-        stop();
-        udt_read_thread.join();
-        return false;
-    }
-
+    auto rf = [](udr_socketpump *p){return p->udt_read_func();};
+    auto wf = [](udr_socketpump *p){return p->udt_write_func();};
+    udt_read_thread = std::thread(rf, this);
+    udt_write_thread = std::thread(wf, this);
     return true;
 }
 
@@ -547,7 +540,11 @@ void udr_socketpump::stop()
 // wait for the pump threads to end
 bool udr_socketpump::join()
 {
-    return udt_read_thread.join() && udt_write_thread.join();
+    if (udt_read_thread.joinable())
+        udt_read_thread.join();
+    if (udt_write_thread.joinable())
+        udt_write_thread.join();
+    return true;
 }
 
 // indicate an abnormal state on either pipe or socket

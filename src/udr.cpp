@@ -32,7 +32,6 @@ and limitations under the License.
 #include <udt.h>
 #include "udr_crypt.h"
 #include "cc.h"
-#include "udr_threads.h"
 #include "udr_util.h"
 #include "udr_options.h"
 #include "udr_rsh.h"
@@ -232,8 +231,6 @@ int run_udr_rsh_client(UDR_Options &options)
     udr_rsh_local local(STDIN_FILENO, STDOUT_FILENO);
     local.run(goptions.host, goptions.port_num, remote_command);
 
-    //run_sender(options, hex_pp, remote_command);
-
     options.verb () << " run_sender done" << endl;
     return 0;
 }
@@ -247,7 +244,6 @@ int run_udr_rsh_server(const UDR_Options &options)
     int status;
     remote.get_child_status(status);
     return status;
-    //return run_receiver(options);
 }
 
 // Get the argv to invoke rsync

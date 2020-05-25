@@ -47,8 +47,6 @@ ifeq ($(os), SUNOS)
 endif
 
 
-
-
 DIR = $(shell pwd)
 
 APP = udr
@@ -60,7 +58,7 @@ udr.cpp udr_log.cpp: version.h
 version.h:
 	./version.sh
 
-udr: udr.o udr_threads.o udr_util.o udr_options.o udr_rsh.o udr_crypt.o
+udr: udr.o udr_util.o udr_options.o udr_rsh.o udr_crypt.o
 	$(LINK.o) $^ $(LDLIBS) -o $@ 
 
 clean:
