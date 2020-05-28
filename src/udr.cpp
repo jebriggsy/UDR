@@ -16,6 +16,13 @@ See the License for the specific language governing permissions
 and limitations under the License.
 *****************************************************************************/
 
+#include "udr_crypt.h"
+#include "udr_util.h"
+#include "udr_exception.h"
+#include "udr_options.h"
+#include "udr_rsh.h"
+#include "cc.h"
+
 #include <unistd.h>
 #include <cstdlib>
 #include <cstring>
@@ -30,15 +37,11 @@ and limitations under the License.
 #include <sys/wait.h>
 
 #include <udt.h>
-#include "udr_crypt.h"
-#include "cc.h"
-#include "udr_util.h"
-#include "udr_options.h"
-#include "udr_rsh.h"
 #include "version.h"
 
 using namespace std;
 
+static int main_guarded(int argc, char * argv[]);
 static int run_udr_main(UDR_Options &options);
 static int run_udr_rsh_client(UDR_Options &options);
 static int run_udr_rsh_server(const UDR_Options &options);
@@ -47,8 +50,30 @@ static std::string get_rsh_udr_cmd(const UDR_Options &options);
 static udr_args get_extra_args(const UDR_Options &options);
 static void print_version();
 
-//only going to go from local -> remote and remote -> local, remote <-> remote maybe later, but local -> local doesn't make sense for UDR
 int main(int argc, char* argv[]) {
+    int result = EXIT_FAILURE;
+    try {
+        result = main_guarded(argc, argv);
+    }
+    catch (udr_argexception &e)
+    {
+        goptions.err() << e.what() << endl;
+        usage(false);
+        result = 2;
+    }
+    catch (udr_exitexception &e)
+    {
+        result = e.exitval;
+    } 
+    catch (udr_exception &e) {
+        goptions.err() << e.what() << endl;
+    }
+    return result;
+}
+
+
+//only going to go from local -> remote and remote -> local, remote <-> remote maybe later, but local -> local doesn't make sense for UDR
+int main_guarded(int argc, char* argv[]) {
 
     //now get the options using udr_options.
     struct UDR_Options &options = goptions;
@@ -125,7 +150,7 @@ int run_udr_main(UDR_Options &options)
 
         args.push_back(options.host);
         args.push_back(udr_cmd);
-        fork_exec("ssh_program", args, sshparent_to_child, sshchild_to_parent);
+        fork_execvp("ssh_program", args, &sshparent_to_child, &sshchild_to_parent);
 
         // read one line from ssh
         ssize_t nbytes = 0;
@@ -182,7 +207,7 @@ int run_udr_main(UDR_Options &options)
     //Invoke rsync
     udr_args args = get_extra_args(options);
 
-    pid_t local_rsync_pid = fork_exec("rsync", args);
+    pid_t local_rsync_pid = fork_execvp("rsync", args);
     options.verb() << " rsync pid: " << local_rsync_pid << endl;
 
     //at this point this process should wait for the rsync process to end

@@ -17,13 +17,16 @@ and limitations under the License.
 *****************************************************************************/
 
 #include "udr_util.h"
+#include "udr_exception.h"
 #include <iostream>
+#include <memory>
 #include <stdlib.h>
 
-#include <unistd.h>
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
+
+#include <unistd.h>
 #include <stdarg.h>
 #include <syslog.h>
 #include <errno.h>
@@ -65,140 +68,39 @@ static void print_args(const std::string &what, const udr_args &args)
         goptions.verb() << " argv[" << i << "]: " << args[i] << endl;
 }
 
-// get the rightmost path entry
-std::string get_progname(const std::string &cmd)
+pid_t fork_execvp(const std::string &what, const udr_args &cmdargs, int *ptc, int *ctp)
 {
-    std::string result;
-    size_t s = cmd.find_last_of('/');
-    if (s != std::string::npos) 
-        return cmd.substr(s+1, std::string::npos);
-    return cmd;
-}
-
-pid_t fork_exec(const std::string &what, const udr_args &args)
-{
-    if (!args.size())
+    if (!cmdargs.size())
     {
-        goptions.err() << "missing command for '" << what << "'" << endl;
-        exit(EXIT_FAILURE);
+        throw udr_argexception(std::string("mising command for ") + what);
     }
-    std::string cmd = args[0];
-    udr_args args2;
-    args2.push_back(get_progname(cmd));
-    for (size_t i = 1; i< args.size(); ++i)
-        args2.push_back(args[i]);
-    return fork_exec(what, cmd, args2);
+    print_args(what, cmdargs);
+    // extract the command, removing any initial dash, which is left in the argv.
+    auto cmd = cmdargs[0];
+    if (cmd.size() > 1 && cmd[0] == '-')
+        cmd = cmd.substr(1, std::string::npos);
 
-}
-
-pid_t fork_exec(const std::string &what, const std::string &cmd, const udr_args &args)
-{
-    print_args(what, args);
-    char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
-    for(unsigned i=0; i<args.size(); i++)
-        argv[i] = (char*)args[i].c_str();
-    argv[args.size()] = 0;
-    pid_t pid = fork_execvp(cmd.c_str(), argv, 0, 0);
-    free(argv);
-    return pid;
-}
-
-pid_t fork_exec(const std::string &what, const udr_args &args, int &p_to_c, int &c_to_p)
-{
-    if (!args.size())
-    {
-        goptions.err() << "missing command for '" << what << "'" << endl;
-        exit(EXIT_FAILURE);
-    }
-    std::string cmd = args[0];
-    udr_args args2;
-    args2.push_back(get_progname(cmd));
-    for (size_t i = 1; i< args.size(); ++i)
-        args2.push_back(args[i]);
-    return fork_exec(what, cmd, args2, p_to_c, c_to_p);
-}
-
-pid_t fork_exec(const std::string &what, const std::string &cmd, const udr_args &args, int &p_to_c, int &c_to_p)
-{
-    print_args(what, args);
-    char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
-    for(unsigned i=0; i<args.size(); i++)
-        argv[i] = (char*)args[i].c_str();
-    argv[args.size()] = 0;
-    pid_t pid = fork_execvp(cmd.c_str(), argv, &p_to_c, &c_to_p);
-    free(argv);
-    return pid;
-}
-
-pid_t fork_pty(const std::string &what, const std::string &cmd, const udr_args &args, int &p_to_c, int &c_to_p)
-{
-    print_args(what, args);
-    char ** argv = (char**)malloc((args.size() + 1) * sizeof(char*));
-    for(unsigned i=0; i<args.size(); i++)
-        argv[i] = (char*)args[i].c_str();
-    argv[args.size()] = 0;
-    pid_t pid = fork_pty(cmd.c_str(), argv, &p_to_c, &c_to_p);
-    free(argv);
-    return pid;
-}
-
-pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp){
-    pid_t pid;
-
+    std::unique_ptr<char *[]> argv{new char* [cmdargs.size() + 1]};
+    for(size_t i=0; i<cmdargs.size(); i++)
+        argv[i] = (char*)cmdargs[i].c_str();
+    argv[cmdargs.size()] = 0;
+    
     int parent_to_child[2], child_to_parent[2];
 
-    //for debugging...
-//  char* arg;
-//  int idx = 0;
-//  while((arg = argv[idx]) != NULL){
-//    fprintf(stderr, "%s arg[%d]: %s\n", program, idx, arg);
-//    idx++;
-//  }
-
     if (ptc) {
-        if(pipe(parent_to_child) != 0 ) {
-            perror("Pipe cannot be created");
-            exit(errno);
-        }
+        if(pipe(parent_to_child) != 0 )
+            throw udr_sysexception("pipe()");
     }
     if (ctp) {
-        if(pipe(child_to_parent) != 0 ) {
-            perror("Pipe cannot be created");
-            exit(errno);
-        }
+        if(pipe(child_to_parent) != 0 )
+            throw udr_sysexception("pipe()");
     }
 
-    pid = fork();
-
-    if(pid == 0){
-        //child
-        if (ptc) {
-            close(parent_to_child[1]);
-            if (-1 == dup2(parent_to_child[0], STDIN_FILENO)) {
-                goptions.err() << "dup2 error: " << strerror(errno) << endl;
-                exit(errno);
-            }
-            close(parent_to_child[0]);
-        }
-        if (ctp) {
-            close(child_to_parent[0]);
-            if (-1 == dup2(child_to_parent[1], STDOUT_FILENO)){
-                goptions.err() << "dup2 error: " << strerror(errno) << endl;
-                exit(errno);
-            }
-            close(child_to_parent[1]);
-        }
-        execvp(program, argv);
-        // Uh oh, we failed
-        goptions.err() << "execvp error: " << strerror(errno) << endl;
-        exit(errno);
-    }
-    else if(pid == -1){
-        goptions.err() <<  "Error starting " <<  program << " : " << strerror(errno) << endl;
-        exit(errno);
-    }
-    else{
-        //parent
+    pid_t pid = fork();
+    if(pid == -1)
+        throw udr_sysexception("fork()");
+    if (pid > 0) {
+         //parent
         if(ptc) {
             close(parent_to_child[0]);
             *ptc = parent_to_child[1];
@@ -207,67 +109,83 @@ pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp){
             close(child_to_parent[1]);
             *ctp = child_to_parent[0];
         }
+        return pid;
     }
-    return pid;
+
+
+    //child
+    if (ptc) {
+        close(parent_to_child[1]);
+        if (-1 == dup2(parent_to_child[0], STDIN_FILENO)) {
+            throw udr_sysexception("dup2()");
+        }
+        close(parent_to_child[0]);
+    }
+    if (ctp) {
+        close(child_to_parent[0]);
+        if (-1 == dup2(child_to_parent[1], STDOUT_FILENO)){
+            throw udr_sysexception("dup2()");
+        }
+        close(child_to_parent[1]);
+    }
+    execvp(cmd.c_str(), argv.get());
+    // Uh oh, we failed
+    throw udr_sysexception("execvp() " + cmd);
+    return 0;
 }
 
-pid_t fork_pty(const char *program, char* argv[], int * ptc, int * ctp){
-    pid_t pid;
-
-    // create pty
-    int master = posix_openpt(O_RDWR);
-    if (master == -1) {
-        goptions.err(errno) << "posix_openpt()" << endl;
-        exit(EXIT_FAILURE);
+pid_t fork_execvp_pty(const std::string &what, const udr_args &cmdargs, int &master){
+    if (!cmdargs.size())
+    {
+        throw udr_argexception(std::string("mising command for ") + what);
     }
-    if (ptc)
-        *ptc = master;
-    if (ctp)
-        *ctp = master;
+    print_args(what, cmdargs);
+    // extract the command, removing any initial dash, which is left in the argv.
+    auto cmd = cmdargs[0];
+    if (cmd.size() > 1 && cmd[0] == '-')
+        cmd = cmd.substr(1, std::string::npos);
 
+    std::unique_ptr<char *[]> argv{new char* [cmdargs.size() + 1]};
+    for(size_t i=0; i<cmdargs.size(); i++)
+        argv[i] = (char*)cmdargs[i].c_str();
+    argv[cmdargs.size()] = 0;
+    
+    // create pty
+    master = posix_openpt(O_RDWR);
+    if (master == -1) {
+        throw udr_sysexception("posix_openpt()");
+    }
     if (grantpt(master)) {
-        goptions.err(errno) << "grant()" << endl;
-        exit(EXIT_FAILURE);
+        throw udr_sysexception("pgrantpt()");
     }
     if (unlockpt(master)) {
-        goptions.err(errno) << "unlockpt()" << endl;
-        exit(EXIT_FAILURE);
+        throw udr_sysexception("unlockpt()");
     }
 
-    pid = fork();
-
-    if(pid == 0){
-        if (-1 == setsid()) {
-            goptions.err(errno) << "setsid()" << endl;
-            exit(EXIT_FAILURE);
-        }
-        int slave = open(ptsname(master), O_RDWR);
-        if (slave == -1) {
-            goptions.err(errno) << "open()" << endl;
-            exit(EXIT_FAILURE);
-        }
-        close(master);
-        if (-1 == dup2(slave, STDIN_FILENO)) {
-            goptions.err(errno) << "dup2()" << endl;
-            exit(EXIT_FAILURE);
-        }
-        if (-1 == dup2(slave, STDOUT_FILENO)) {
-            goptions.err(errno) << "dup2()" << endl;
-            exit(EXIT_FAILURE);
-        }
-        close(slave);
-
-        execvp(program, argv);
-        // Uh oh, we failed
-        goptions.err() << "execvp error: " << strerror(errno) << endl;
-        exit(errno);
+    pid_t pid = fork();
+    if (pid == -1)
+        throw udr_sysexception("fork()");
+    if (pid > 0) {
+         //parent
+        return pid;
     }
-    else if(pid == -1){
-        goptions.err() <<  "Error starting " <<  program << " : " << strerror(errno) << endl;
-        exit(errno);
-    }
-    
-    return pid;
+   
+    // child
+    if (-1 == setsid())
+        throw udr_sysexception("setsid()");
+    int slave = open(ptsname(master), O_RDWR);
+    if (slave == -1)
+        throw udr_sysexception("open()");
+    close(master);
+    if (-1 == dup2(slave, STDIN_FILENO))
+        throw udr_sysexception("dup2()");
+    if (-1 == dup2(slave, STDOUT_FILENO))
+        throw udr_sysexception("dup2()");
+    close(slave);
+
+    execvp(cmd.c_str(), argv.get());
+    throw udr_sysexception("execvp() " + cmd);
+    return 0;
 }
 
 void sigchld_handler(int s)

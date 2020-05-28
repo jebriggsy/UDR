@@ -16,15 +16,17 @@ See the License for the specific language governing permissions
 and limitations under the License.
 *****************************************************************************/
 
-#include <iostream>
+#include "udr_options.h"
+#include "udr_exception.h"
 
-#include <unistd.h>
+#include <iostream>
 #include <cstdlib>
 #include <cstring>
+
 #include <stdio.h>
 #include <getopt.h>
-#include "udr_options.h"
 
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <errno.h>
@@ -88,7 +90,7 @@ teestream::teestream(std::ostream & o1, std::ostream & o2)
   , tbuf(o1.rdbuf(), o2.rdbuf())
 {}
 
-void usage() {
+void usage(bool do_exit) {
     fprintf(stderr, "usage: udr [UDR options] rsync [rsync options]\n\n");
     fprintf(stderr, "UDR options:\n");
     fprintf(stderr, "\t[-n aes-128 | aes-192 | aes-256 | bf | des-ede3] Encryption cypher\n");
@@ -98,7 +100,8 @@ void usage() {
     fprintf(stderr, "\t[-b port] Remote UDT port\n");
     fprintf(stderr, "\t[-c path] Remote UDR executable\n");
     fprintf(stderr, "\t[-P ssh-port] Remote port to connect to via SSH\n");
-    exit(1);
+    if (do_exit)
+        throw udr_exitexception(1);
 }
 
 UDR_Options::UDR_Options()
@@ -349,7 +352,7 @@ int UDR_Options::get_options(int argc, char * argv[])
             const std::string &arg = extra_args[i];
             if(arg.find("-e") == 0 || arg == "--rsh"){
                 cerr << "UDR ERROR: UDR overrides the -e, --rsh flag of rsync, so they cannot be used in the provided rsync command" << endl;
-                exit(1);
+                throw udr_exitexception(1);
             }
         }
     }

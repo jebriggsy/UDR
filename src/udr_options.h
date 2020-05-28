@@ -72,7 +72,7 @@ struct UDR_Options{
     std::string host;
     int port_num;
     std::string username;
-    std::string which_process;
+    std::string which_process = "[udr ?]";
     std::string version;
     std::string server_dir;
     int server_port;
@@ -96,7 +96,7 @@ private:
 };
 
 
-void usage();
+void usage(bool do_exit=true);
 
 // the global options
 extern UDR_Options goptions;
