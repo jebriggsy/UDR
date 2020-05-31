@@ -18,6 +18,7 @@ and limitations under the License.
 
 #include "udr_crypt.h"
 #include "udr_util.h"
+#include "udr_process.h"
 #include "udr_exception.h"
 #include "udr_options.h"
 #include "udr_rsh.h"
@@ -211,7 +212,7 @@ int run_udr_main(UDR_Options &options)
 
     //pid_t local_rsync_pid = fork_execvp("rsync", args);
     udr_process rsync(args, false, false);
-    /options.verb() << " rsync pid: " << rsync.get_id() << endl;
+    goptions.verb() << " rsync pid: " << rsync.get_id() << endl;
     rsync.wait(-1);
     return rsync.exit_status();
 }

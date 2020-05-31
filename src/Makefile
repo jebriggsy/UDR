@@ -58,7 +58,7 @@ udr.cpp udr_log.cpp: version.h
 version.h:
 	./version.sh
 
-udr: udr.o udr_util.o udr_options.o udr_rsh.o udr_crypt.o udr_exception.o
+udr: udr.o udr_util.o udr_options.o udr_rsh.o udr_crypt.o udr_exception.o udr_process.o
 	$(LINK.o) $^ $(LDLIBS) -o $@ 
 
 clean:
