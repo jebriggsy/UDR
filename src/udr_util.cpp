@@ -68,6 +68,11 @@ static void print_args(const std::string &what, const udr_args &args)
         goptions.verb() << " argv[" << i << "]: " << args[i] << endl;
 }
 
+pid_t fork_execvp(const udr_args &cmdargs, int *ptc, int *ctp)
+{
+    return fork_execvp(cmdargs.at(0), cmdargs, ptc, ctp);
+}
+
 pid_t fork_execvp(const std::string &what, const udr_args &cmdargs, int *ptc, int *ctp)
 {
     if (!cmdargs.size())
@@ -132,6 +137,11 @@ pid_t fork_execvp(const std::string &what, const udr_args &cmdargs, int *ptc, in
     // Uh oh, we failed
     throw udr_sysexception("execvp() " + cmd);
     return 0;
+}
+
+pid_t fork_execvp_pty(const udr_args &cmdargs, int &master)
+{
+    return fork_execvp_pty(cmdargs.at(0), cmdargs, master);
 }
 
 pid_t fork_execvp_pty(const std::string &what, const udr_args &cmdargs, int &master){
@@ -264,3 +274,164 @@ int get_server_connection(const std::string &host, int port, const std::string &
 
     return 1;
 }
+
+
+
+// udr_process class implementation
+bool udr_process::is_init = false;
+std::mutex udr_process::mt;
+std::condition_variable udr_process::cv;
+std::set<pid_t> udr_process::handled;
+
+udr_process::udr_process() noexcept
+{}
+
+udr_process::udr_process(udr_process &&other) noexcept
+{
+    pid = other.pid;
+    other.pid = 0;
+    h_in = other.h_in;
+    h_out = other.h_out;
+    other.h_in = other.h_out = -1;
+    waited = other.waited;
+    exit_code = other.exit_code;
+    exit_signal = other.exit_signal;
+}
+
+// we don't attempt to kill or wait for the current process.
+// assume that the user knows what he is doing.
+udr_process &udr_process::operator=(udr_process &&other) noexcept
+{
+    pid = other.pid;
+    other.pid = 0;
+    h_in = other.h_in;
+    h_out = other.h_out;
+    other.h_in = other.h_out = -1;
+    waited = other.waited;
+    exit_code = other.exit_code;
+    exit_signal = other.exit_signal;
+    return *this;
+}
+
+
+udr_process::udr_process(const std::vector<std::string> &args, bool capture, bool tty)
+{
+    init();
+    if(tty) {
+        pid = fork_execvp_pty(args, h_in);
+        h_out = h_in;
+    }
+    else if (capture) {
+        pid = fork_execvp(args, &h_in, &h_out);
+    } else {
+        pid = fork_execvp(args);
+    }
+}
+udr_process::~udr_process()
+{
+    close();
+}
+
+void udr_process::get_handles(int &hin, int &hout) const noexcept
+{
+    hin = h_in;
+    hout = h_out;
+}
+
+void udr_process::close() noexcept
+{
+    if (h_in)
+        ::close(h_in);
+    if (h_out && h_out != h_in)
+        ::close(h_out);
+    h_in = h_out = 0;
+}
+
+bool udr_process::waitable() const noexcept
+{
+    return pid != 0;
+}
+
+// we use condition variables to properly wait for
+// exit status.  sigchld handler does notify us.
+bool udr_process::wait(int timeout_ms)
+{
+
+    if (!pid)
+        return false;
+    if (waited)
+        return true;
+    bool ok=false;
+    {
+        std::unique_lock<std::mutex> lock(mt);
+        if (timeout_ms == 0) {
+            ok = handled.count(pid) > 0;
+        } else if (timeout_ms < 0) {
+            cv.wait(lock, [&]{return handled.count(pid)>0;});
+            ok = true;
+        } else {
+            ok = cv.wait_for(lock, std::chrono::milliseconds(timeout_ms), [&]{return handled.count(pid)>0;});
+        }
+        if (ok)
+            handled.erase(pid);
+    }
+    if (ok) {
+        waited = true;
+        int status;
+        for(;;) {
+            pid_t res = waitpid(pid, &status, 0);
+            if (res < 0) {
+                if (errno != EAGAIN && errno != EINTR)
+                    throw udr_sysexception("waitpid()");
+            } else
+                break;
+        }
+        if (WIFEXITED(status))
+            exit_code = WEXITSTATUS(status);
+        if (WIFSIGNALED(status))
+            exit_signal = WTERMSIG(status);
+
+    }
+    return ok;
+}
+
+pid_t udr_process::get_id() const noexcept
+{
+    return pid;
+}
+
+int udr_process::exit_status(int &sig) const noexcept
+{
+    sig = exit_signal;
+    return exit_code;
+}
+int udr_process::exit_status() const noexcept
+{
+    int sig;
+    int e = exit_status(sig);
+    if (sig)
+        return -sig;
+    return e;
+}
+
+// set a signal handler for SIGCHLD
+void udr_process::init()
+{   
+    std::lock_guard<std::mutex> lock(mt);
+    if (is_init)
+        return;
+    struct sigaction act;
+    memset(&act, 0, sizeof(act));
+    act.sa_sigaction = handler;
+    act.sa_flags = SA_SIGINFO;
+    sigaction(SIGCHLD, &act, 0);
+    is_init = true;
+}
+
+void udr_process::handler(int sig, siginfo_t *info, void *ctx)
+{
+    std::lock_guard<std::mutex> lock(mt);
+    handled.insert(info->si_pid);
+    cv.notify_all();
+}
+

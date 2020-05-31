@@ -2,6 +2,8 @@
 #ifndef UDR_RSH_H
 #define UDR_RSH_H
 
+#include "udr_util.h"
+
 #include <string>
 #include <thread>
 #include <mutex>
@@ -87,7 +89,7 @@ public:
 
 protected:
     bool start_pump(UDTSOCKET s, int h_read, int h_write);
-    bool start_child(const std::string &what, const std::string &cmd);
+    void start_child(const std::string &what, const std::string &cmd);
     bool poll_child(bool non_blocking);
 
     bool udt_send_string(const std::string &str);
@@ -98,9 +100,7 @@ protected:
     UDTSOCKET socket = 0;
 
 private:
-    int child_pid = 0;
-    bool child_waited = false;
-    int child_status = -1;
+    udr_process child;
 };
 
 

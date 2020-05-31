@@ -61,19 +61,13 @@ void udr_rsh_base::close(bool abortive)
 
 bool udr_rsh_base::get_child_status(int &status) const
 {
-    if (child_waited)
-        status = child_status;
-    else
-        status = -1;  // maybe something else?
-    return child_waited;
+    status = child.exit_status();
+    return true;
 }
 
 int udr_rsh_base::get_child_status() const
 {
-    if (child_waited)
-        return child_status;
-    else
-        return  -1;  // maybe something else?
+    return child.exit_status();
 }
 
 bool udr_rsh_base::start_pump(UDTSOCKET s, int h_read, int h_write)
@@ -84,7 +78,7 @@ bool udr_rsh_base::start_pump(UDTSOCKET s, int h_read, int h_write)
     return pump->start();
 }
 
-bool udr_rsh_base::start_child(const std::string &purpose, const std::string &cmd)
+void udr_rsh_base::start_child(const std::string &purpose, const std::string &cmd)
 {
     udr_args args;
     std::string shell = goptions.shell_program;
@@ -92,44 +86,28 @@ bool udr_rsh_base::start_child(const std::string &purpose, const std::string &cm
     if (cmd.size()) {
         args.push_back("-c");
         args.push_back(cmd);
-        child_pid =  fork_execvp("remote command", args, &to_child, &from_child);
+        child = udr_process(args, true, false);
     } else {
         // mark the shell as a login shell by convention
         args[0] = "-" + args[0];
         // force an interactive shell
         //args.push_back("-i");
-        int master;
-        child_pid =  fork_execvp_pty("remote command", args, master);
-        from_child = to_child =  master;
+        child = udr_process(args, true, true);
+        //int master;
+        //child_pid =  fork_execvp_pty("remote command", args, master);
+        //from_child = to_child =  master;
     }
-    goptions.verb() << "child pid: " << child_pid << endl;
-    return child_pid != 0;
+    child.get_handles(to_child, from_child);
+    goptions.verb() << "child pid: " << child.get_id() << endl;
 }
 
 
 // check if the child is alive.  return false if it is dead
 bool udr_rsh_base::poll_child(bool non_blocking)
 {
-    if (!child_pid)
+    if (!child.waitable())
         return false;
-    if (child_waited)
-        return false;
-    int status;
-    pid_t res = waitpid(child_pid, &status, non_blocking ? WNOHANG : 0);
-    if (res == -1)
-    {
-        goptions.err(errno) << " in waitpid()" << endl;
-        return false;
-    }
-    if (res == 0)
-        return true;
-    // chid has exited
-    child_waited = true;
-    if (WIFEXITED(status)) 
-        child_status = WEXITSTATUS(status);
-    else
-        child_status = -1;
-    return false;
+    return !child.wait(non_blocking?0:-1);
 }
 
 
@@ -202,8 +180,7 @@ bool udr_rsh_remote::run()
     if (!udt_recv_string(command))
         return false;
     command = get_command(command);
-    if (!start_child("rsh target", command))
-        return false;
+    start_child("rsh target", command);
 
     //now if we're in server mode need to drop privileges if specified
     if(options.rsync_gid > 0){

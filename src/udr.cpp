@@ -115,6 +115,7 @@ int run_udr_main(UDR_Options &options)
     int line_size = NI_MAXSERV + PASSPHRASE_SIZE * 2 + 1;
     char * line = (char*) malloc(line_size);
     line[0] = '\0';
+    udr_process ssh;
 
     /* if given double colons then use the server connection: options.server_connect, options.server is for the udr server */
     if (options.server_connect) {
@@ -150,7 +151,8 @@ int run_udr_main(UDR_Options &options)
 
         args.push_back(options.host);
         args.push_back(udr_cmd);
-        fork_execvp("ssh_program", args, &sshparent_to_child, &sshchild_to_parent);
+        ssh = udr_process{args, true, false};
+        ssh.get_handles(sshparent_to_child, sshchild_to_parent);
 
         // read one line from ssh
         ssize_t nbytes = 0;
@@ -207,19 +209,11 @@ int run_udr_main(UDR_Options &options)
     //Invoke rsync
     udr_args args = get_extra_args(options);
 
-    pid_t local_rsync_pid = fork_execvp("rsync", args);
-    options.verb() << " rsync pid: " << local_rsync_pid << endl;
-
-    //at this point this process should wait for the rsync process to end
-    int rsync_exit_status;
-    do {
-        pid_t w = waitpid(local_rsync_pid, &rsync_exit_status, WUNTRACED | WCONTINUED);
-        if (w == -1) {
-            perror("waitpid");
-            exit(EXIT_FAILURE);
-        }
-    } while (!WIFEXITED(rsync_exit_status) && !WIFSIGNALED(rsync_exit_status));
-    exit(WEXITSTATUS(rsync_exit_status));
+    //pid_t local_rsync_pid = fork_execvp("rsync", args);
+    udr_process rsync(args, false, false);
+    /options.verb() << " rsync pid: " << rsync.get_id() << endl;
+    rsync.wait(-1);
+    return rsync.exit_status();
 }
 
 // Udr was invoked as an rsh client by rsync.  Perform this mode.
