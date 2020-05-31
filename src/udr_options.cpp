@@ -417,7 +417,7 @@ void UDR_Options::get_host_username()
     // an option argument, but we assume that those
     // go backwards until find first option, we'll call those the source
     int src_num = 0;
-    for(size_t i = extra_args.size() - 2; i > 0; i--){
+    for(ssize_t i = extra_args.size() - 2; i > 0; i--){
 //        fprintf(stderr, "i: %d argv: %s\n", i, argv[i]);
         if(extra_args[i][0] == '-')
             break;
