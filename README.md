@@ -18,7 +18,7 @@ XXX: [LINUX(default), BSD, OSX]
 YYY: [AMD64(default), POWERPC, IA64, IA32]  
 
 ### Dependencies:
-OpenSSL (libssl and libcrypto)
+OpenSSL (Debian: libssl and libcrypto, CentOS: openssl-devel)
 Currently, UDR has mainly been tested on Linux so your mileage may vary on another OS. UDT has been well tested on all of the provided options.
 
 USAGE
@@ -49,7 +49,11 @@ The rsync [rsync options] should take any of the standard rsync options, except 
     udr rsync -av --stats --progress /home/user/tmp/ hostname.com:/home/user/tmp
 
 ### A command with udr options:
-    udr -c /home/user/udr/src/udr -a 8000 -b 8010 rsync -av --stats --progress /home/user/tmp/ hostname.com:/home/user/tmp
+    udr -c /home/user/udr/src/udr -a 8000 -b 8010 \
+       rsync -av --stats --progress /home/user/tmp/ hostname.com:/home/user/tmp
+
+    udr -a 2620 -b 2620 -r 950 -c /home/oper/bin/udr \
+       rsync -av --stats --progress oper@vlbi-control1.iram.es:/tmp/random.vdif /data/testpv/
 
 ### Notes:
 After the rsync data transfer is complete, the local udr thread is shutdown by a signal. Rsync thinks this is abnormal and prints out the error "rsync error: sibling process terminated abnormally", which can be ignored. However, the transfer should be complete, if other rsync errors appear these are true errors.
