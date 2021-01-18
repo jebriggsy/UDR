@@ -3,7 +3,9 @@ UDR
 
 [![Build Status](https://travis-ci.org/LabAdvComp/UDR.svg?branch=master)](https://travis-ci.org/LabAdvComp/UDR)
 
-UDR is a wrapper around rsync that enables rsync to use UDT.
+UDR is a wrapper around rsync that enables rsync to use the UDP-based Data Transfer Protocol (UDT).
+
+This is a copy of the original UDR code, and adds an option to limit the bandwidth at the UDT layer.
 
 CONTENT
 -------
@@ -54,6 +56,10 @@ The rsync [rsync options] should take any of the standard rsync options, except 
 
     udr -a 2620 -b 2620 -r 950 -c /home/oper/bin/udr \
        rsync -av --stats --progress oper@vlbi-control1.iram.es:/tmp/random.vdif /data/testpv/
+
+    udr -a 2620 -b 2620 -r 950 -c /home/oper/bin/udr \
+       rsync -av --stats --progress --bwlimit=1160 oper@vlbi-control1.iram.es:/tmp/random.vdif /data/testpv/
+
 
 ### Notes:
 After the rsync data transfer is complete, the local udr thread is shutdown by a signal. Rsync thinks this is abnormal and prints out the error "rsync error: sibling process terminated abnormally", which can be ignored. However, the transfer should be complete, if other rsync errors appear these are true errors.
