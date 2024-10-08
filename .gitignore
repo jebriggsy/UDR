@@ -12,9 +12,13 @@
 *.la
 *.a
 
+# dependenchy files
+.deps/
+
 # The UDR binary and other files
 src/udr
 src/version.h
+src/version
 *.udr_key
 udt/app/appclient
 udt/app/appserver

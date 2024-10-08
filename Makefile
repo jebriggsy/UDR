@@ -1,5 +1,7 @@
-DIRS = udt src
+DIRS = udtproject/udt4 src
 TARGETS = all clean
+
+export arch = AMD64
 
 $(TARGETS): %: $(patsubst %, %.%, $(DIRS))
 

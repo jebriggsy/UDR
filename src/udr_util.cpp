@@ -16,73 +16,46 @@ See the License for the specific language governing permissions
 and limitations under the License.
 *****************************************************************************/
 
-#include <unistd.h>
+#include "udr_util.h"
+#include <iostream>
+#include <memory>
+#include <stdlib.h>
+
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
-#include <stdarg.h>
-#include <syslog.h>
+
+#include <unistd.h>
 #include <errno.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/wait.h>
+#include <sys/stat.h>
 
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <signal.h>
-#include "udr_util.h"
 
-pid_t fork_execvp(const char *program, char* argv[], int * ptc, int * ctp){
-    pid_t pid;
+using std::cerr;
+using std::endl;
 
-    int parent_to_child[2], child_to_parent[2];
-
-    //for debugging...
-//  char* arg;
-//  int idx = 0;
-//  while((arg = argv[idx]) != NULL){
-//    fprintf(stderr, "%s arg[%d]: %s\n", program, idx, arg);
-//    idx++;
-//  }
-
-    if(pipe(parent_to_child) != 0 || pipe(child_to_parent) != 0){
-	perror("Pipe cannot be created");
-	exit(1);
-    }
-
-    pid = fork();
-
-    if(pid == 0){
-	//child
-	close(parent_to_child[1]);
-	dup2(parent_to_child[0], 0);
-	close(child_to_parent[0]);
-	dup2(child_to_parent[1], 1);
-
-	execvp(program, argv);
-	perror(program);
-	exit(1);
-    }
-    else if(pid == -1){
-	fprintf(stderr, "Error starting %s\n", program);
-	exit(1);
-    }
-    else{
-	//parent
-	close(parent_to_child[0]);
-	*ptc = parent_to_child[1];
-	close(child_to_parent[1]);
-	*ctp = child_to_parent[0];
-    }
-    return pid;
-}
-
-void sigchld_handler(int s)
+std::string args_join(const udr_args &args, bool escape)
 {
-    while(waitpid(-1, NULL, WNOHANG) > 0);
+    if (args.size() == 0)
+        return "";
+    std::string r = args[0];
+    for(unsigned i=1; i < args.size(); i++)
+        r += " " + (escape ? arg_escape(args[i]) : args[i]);
+    return r;
 }
+
+std::string arg_escape(const std::string &arg)
+{
+    // TODO: Implement escaping of quotes, quoting args with spaces, etc
+    return arg;
+}
+
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -94,7 +67,8 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int get_server_connection(char * host, char * port, char * udr_cmd, char * line, int line_size){
+int get_server_connection(const std::string &host, int port, const std::string &udr_cmd, char * line, int line_size)
+{
     //first check to see udr server is running.... 
 
     int sockfd, numbytes;
@@ -106,21 +80,21 @@ int get_server_connection(char * host, char * port, char * udr_cmd, char * line,
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    if((rv = getaddrinfo(host, port, &hints, &servinfo)) != 0){
+    if((rv = getaddrinfo(host.c_str(), n_to_string(port).c_str(), &hints, &servinfo)) != 0){
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 0;
     }
 
     for(p = servinfo; p != NULL; p = p->ai_next){
         if((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-        //perror("udr client: socket");
-        continue;
+            //perror("udr client: socket");
+            continue;
         }
 
         if(connect(sockfd, p->ai_addr, p->ai_addrlen) == -1){
-        close(sockfd);
-        //perror("udr client: connect");
-        continue;
+            close(sockfd);
+            //perror("udr client: connect");
+            continue;
         }
 
         break;
@@ -136,7 +110,7 @@ int get_server_connection(char * host, char * port, char * udr_cmd, char * line,
     //First send the udr command
     //printf("client should be sending: %s\n", udr_cmd);
 
-    if(send(sockfd, udr_cmd, strlen(udr_cmd), 0) == -1){
+    if(send(sockfd, udr_cmd.c_str(), udr_cmd.size(), 0) == -1){
         perror("udr send");
         exit(1);
     }
@@ -154,3 +128,5 @@ int get_server_connection(char * host, char * port, char * udr_cmd, char * line,
 
     return 1;
 }
+
+

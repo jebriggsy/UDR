@@ -19,10 +19,33 @@ and limitations under the License.
 #ifndef UDR_OPTIONS_H
 #define UDR_OPTIONS_H
 #include <string>
+#include <vector>
+#include <iostream>
+#include <fstream>
 #include <netdb.h>
 #include <limits.h>
 
+#include <udt.h>
+
+typedef std::vector<std::string> udr_args;
+
 struct UDR_Options{
+    UDR_Options();
+    int get_options(int argc, char * argv[]);
+    void get_host_username();
+    int parse_port(const char *arg, const char *argname);
+    int parse_int(const char *arg, const char *argname);
+    std::ostream &err() ;
+    std::ostream &err(int errnum);
+    std::ostream &err(UDT::ERRORINFO &);
+    std::ostream &verb();
+    std::ostream &dbg();
+    std::ostream &dbg2();
+    int get_verbosity() const {return verbose;}
+    bool is_verbose() const {return verbose >= 1;}
+    bool is_debug() const {return verbose >= 2;}
+    bool is_debug2() const {return verbose >= 3;}
+
     // The port UDR will attempt the initial SSH connection over
     int ssh_port;
     int start_port;
@@ -32,44 +55,51 @@ struct UDR_Options{
 
     bool tflag;
     bool sflag;
-    bool verbose;
+    int verbose;
     bool encryption;
     bool version_flag;
     bool server_connect;
 
-    char udr_program_src[PATH_MAX+1];
-    char udr_program_dest[PATH_MAX+1];
-    char ssh_program[PATH_MAX+1];
-    char rsync_program[PATH_MAX+1];
-    char rsync_timeout[PATH_MAX+1];
-    char shell_program[PATH_MAX+1];
+    std::string udr_program_src;
+    std::string udr_program_dest;
+    std::string ssh_program;
+    std::string rsync_program;
+    std::string rsync_timeout;
+    std::string shell_program;
 
-    char key_base_filename[PATH_MAX+1];
-    char key_filename[PATH_MAX+1];
+    std::string key_base_filename;
+    std::string key_filename;
 
-    char host[PATH_MAX+1];
-    char port_num[NI_MAXSERV+1];
-    char username[PATH_MAX+1];
-    char which_process[PATH_MAX+1];
-    char version[PATH_MAX+1];
-    char server_dir[PATH_MAX+1];
-    char server_port[NI_MAXSERV+1];
+    std::string host;
+    int port_num;
+    std::string username;
+    std::string which_process = "[udr ?]";
+    std::string version;
+    std::string server_dir;
+    int server_port;
 
-    char server_config[PATH_MAX+1];
+    std::string server_config;
 
-    char encryption_type[PATH_MAX+1];
+    std::string encryption_type;
 
-    char *specify_ip;
+    std::string specify_ip;
 
     uid_t rsync_uid;
     gid_t rsync_gid;
 
+    // the rsync part of the command ine, starting with the rsync cmd itself.
+    std::vector<std::string> args;  // args uptil rsync
+    std::vector<std::string> extra_args; // rsync and following args
+private:
+    std::ofstream nullstream;
+    std::ofstream logstream;
+    std::ostream *mycerr = &std::cerr;
 };
 
-void usage();
 
-int get_udr_options(UDR_Options * options, int argc, char * argv[], int rsync_arg_idx);
+void usage(bool do_exit=true);
 
-void get_host_username(UDR_Options * udr_options, int argc, char *argv[], int rsync_arg_idx);
+// the global options
+extern UDR_Options goptions;
 
 #endif
