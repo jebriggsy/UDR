@@ -33,7 +33,7 @@ def src_dir():
 
 @pytest.fixture(scope='session')
 def udr_path(src_dir):
-    return join(src_dir(), 'udr')
+    return join(src_dir, 'udr')
 
 
 @pytest.fixture(scope='session')
