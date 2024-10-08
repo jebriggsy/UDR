@@ -7,11 +7,22 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
-
+  build-test-linux:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: make
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Build
       run: make -e os=LINUX arch=AMD64
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+    - name: Install & Run PyTest
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+        pytest -vv tests
+      
+  
+      
