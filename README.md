@@ -1,22 +1,3 @@
-WARNING
-=======
-
-This project is NOT MAINTAINED, I've only forked it because I fixed some openssl deprecation ages ago and opened a PR upstream that never got merged but I am not in any way using or recommending to use this, and will now archive the repo.
-
-I've achieved higher throughput over long distances by just switching to a different congestion control algorithm for TCP:
-```
-sysctl net.ipv4.tcp_congestion_control=bbr
-```
-
-This gives me all the server can send with rsync over 300ms latency, unlike the default congestion control algorithm that gave me about 1/10th of the speed.
-
-I consider my problem solved and once again do not recommend using UDR. Please make sure you really need it.
-
-
-
-
-
-
 UDR
 ===
 
