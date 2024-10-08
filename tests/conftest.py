@@ -32,7 +32,7 @@ def src_dir():
 
 
 @pytest.fixture(scope='session')
-def udr_path():
+def udr_path(src_dir):
     return join(src_dir(), 'udr')
 
 
@@ -50,7 +50,7 @@ def default_args(udr_path, ssh_port):
         'rsync',
     ]
 
-@pytest.yield_fixture
+@pytest.fixture
 def udr(udr_path, src_dir):
     """Returns a Popen partial function to run UDR"""
 
