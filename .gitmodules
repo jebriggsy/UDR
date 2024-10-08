@@ -1,3 +1,4 @@
 [submodule "udtproject"]
 	path = udtproject
 	url = git@github.com:kristjanvalur/UDT.git
+	branch = work
