@@ -3,7 +3,9 @@ UDR
 
 [![Build Status](https://travis-ci.org/LabAdvComp/UDR.svg?branch=master)](https://travis-ci.org/LabAdvComp/UDR)
 
-UDR is a wrapper around rsync that enables rsync to use UDT.
+UDR is a wrapper around rsync that enables rsync to use the UDP-based Data Transfer Protocol (UDT).
+
+This is a copy of the original UDR code, and adds an option to limit the bandwidth at the UDT layer.
 
 CONTENT
 -------
@@ -18,7 +20,7 @@ XXX: [LINUX(default), BSD, OSX]
 YYY: [AMD64(default), POWERPC, IA64, IA32]  
 
 ### Dependencies:
-OpenSSL (libssl and libcrypto)
+OpenSSL (Debian: libssl and libcrypto, CentOS: openssl-devel)
 Currently, UDR has mainly been tested on Linux so your mileage may vary on another OS. UDT has been well tested on all of the provided options.
 
 USAGE
@@ -30,16 +32,18 @@ UDR must be on the client and server machines that data will be transferred betw
 
 ### UDR options:
 
-- `[-a starting port number]` default is 9000
-- `[-b ending port number]` default is 9100
-- `[-n aes-128 | aes-192 | aes-256 | bf | des-ede3]` turns on encryption, if crypto is not specified aes-128 is the default
-- `[-p path]` local path for the .udr_key file used for encryption, default is the current directory
-- `[-c remote udr location]` by default udr assumes that udr is in your path on the remote system, here you can specify the location explicitly
-- `[-o server port]` port to access a UDR server, default is 9000
-- `[-v]` verbose mode, typically for debugging purposes
-- `[--version]` print out the version
-- `[-d timeout]` specify duration in seconds in which to kill remaining threads if no data is transfered after connected, default is 15s
+- `[-a start port] UDT port
+- `[-b end port] UDT port
+- `[-c path] Explicit path to remote UDR executable, if not in user path
+- `[-d timeout] Data transfer timeout in seconds, default is 15s
 - `[-i ip]` specify the interface by ip that the remote process will bind to
+- `[-n aes-128 | aes-192 | aes-256 | bf | des-ede3]` turns on encryption, if crypto is not specified aes-128 is the default
+- `[-o server port] Port to access a UDR server, default 9000
+- `[-p path]` local path for the .udr_key file used for encryption, default is the current directory
+- `[-P ssh-port] Remote port to connect to via SSH
+- `[-r max-bw] Maximum bandwidth to utilize (Mbps)
+- `[-v] Run UDR with verbosity
+- `[--version]` print out the version
 
 The rsync [rsync options] should take any of the standard rsync options, except the -e/--rsh flag which how UDR interfaces with rsync.
 
@@ -47,7 +51,15 @@ The rsync [rsync options] should take any of the standard rsync options, except 
     udr rsync -av --stats --progress /home/user/tmp/ hostname.com:/home/user/tmp
 
 ### A command with udr options:
-    udr -c /home/user/udr/src/udr -a 8000 -b 8010 rsync -av --stats --progress /home/user/tmp/ hostname.com:/home/user/tmp
+    udr -c /home/user/udr/src/udr -a 8000 -b 8010 \
+       rsync -av --stats --progress /home/user/tmp/ hostname.com:/home/user/tmp
+
+    udr -a 2620 -b 2620 -r 950 -c /home/oper/bin/udr \
+       rsync -av --stats --progress oper@vlbi-control1.iram.es:/tmp/random.vdif /data/testpv/
+
+    udr -a 2620 -b 2620 -r 950 -c /home/oper/bin/udr \
+       rsync -av --stats --progress --bwlimit=1160 oper@vlbi-control1.iram.es:/tmp/random.vdif /data/testpv/
+
 
 ### Notes:
 After the rsync data transfer is complete, the local udr thread is shutdown by a signal. Rsync thinks this is abnormal and prints out the error "rsync error: sibling process terminated abnormally", which can be ignored. However, the transfer should be complete, if other rsync errors appear these are true errors.

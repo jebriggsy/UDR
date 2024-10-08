@@ -286,6 +286,11 @@ int run_sender(UDR_Options * udr_options, unsigned char * passphrase, const char
 	return 1;
     }
 
+    if (udr_options->bandwidthcap > 0) {
+        uint64_t opt = udr_options->bandwidthcap * 125000; // Mbps to byte/sec
+        UDT::setsockopt(client, 0, UDT_MAXBW, &opt, sizeof(opt));
+    }
+
     if (UDT::ERROR == UDT::connect(client, peer->ai_addr, peer->ai_addrlen)) {
 	cerr << "[udr sender] connect: " << UDT::getlasterror().getErrorMessage() << endl;
 	return 1;
@@ -422,6 +427,11 @@ int run_receiver(UDR_Options * udr_options) {
 	    serv = UDT::socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 
 	    int r;
+
+	    if (udr_options->bandwidthcap > 0) {
+	        uint64_t opt = udr_options->bandwidthcap * 125000; // Mbps to byte/sec
+	        UDT::setsockopt(serv, 0, UDT_MAXBW, &opt, sizeof(opt));
+	    }
 
 	    if (specify_ip){
 
