@@ -119,7 +119,7 @@ UDR_Options::UDR_Options()
     encryption_type = "aes-128";
     version_flag = false;
     server_connect = false;
-    bandwithcap = 0;
+    bandwidthcap = 0;
 
     udr_program_dest = "udr";
     ssh_program = "ssh";
