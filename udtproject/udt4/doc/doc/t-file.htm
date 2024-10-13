@@ -10,11 +10,11 @@
 <div class="ref_head">&nbsp;UDT Tutorial</div>
 
 <h3><font color="#000080">File Transfer using UDT</font></h3>
-<p>While you can always use regular UDT::send and UDT::recv to transfer a file, UDT provides a more convinient and optimized way for file transfer. An application can use UDT::sendfile 
-and UDT::recvfile directly. In addition, file transfer IO API and regular data IO API are orthogonal. E.g., the data stream sent out by UDT::sendfile does not necessarily require 
+<p>While you can always use regular UDT::send and UDT::recv to transfer a file, UDT provides a more convinient and optimized way for file transfer. An application can use UDT::sendfile
+and UDT::recvfile directly. In addition, file transfer IO API and regular data IO API are orthogonal. E.g., the data stream sent out by UDT::sendfile does not necessarily require
 UDT::recvfile to accept.</p>
 
-<p>The sendfile and recvfile methods are blocking call and are not affected by UDT_SNDSYN, UDT_RCVSYN, UDT_SBDTIMEO, or UDT_RCVTIMEO. They always complete the call with the specified 
+<p>The sendfile and recvfile methods are blocking call and are not affected by UDT_SNDSYN, UDT_RCVSYN, UDT_SBDTIMEO, or UDT_RCVTIMEO. They always complete the call with the specified
 size parameter for sending or receiving unless errors occur.</p>
 
 <p>UDT uses C++ fstream for file IO.</p>

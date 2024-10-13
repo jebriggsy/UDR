@@ -70,6 +70,7 @@
                     black = {
                       enable = true;
                       types = [ "python" ];
+                      excludes = [ "server/.*" ]; # written in old python
                     };
                     isort = {
                       enable = true;

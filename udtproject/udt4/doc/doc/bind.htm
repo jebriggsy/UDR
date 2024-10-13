@@ -41,7 +41,7 @@ int bind(<br />
 </dl>
 
 <h5>Return Value</h5>
-<p>If the binding is successful, bind returns 0, otherwise it returns UDT::ERROR and the specific error information can be retrieved using <a 
+<p>If the binding is successful, bind returns 0, otherwise it returns UDT::ERROR and the specific error information can be retrieved using <a
 href="error.htm">getlasterror</a>.</p>
 
 <table width="100%" border="1" cellpadding="2" cellspacing="0" bordercolor="#CCCCCC">
@@ -68,17 +68,17 @@ href="error.htm">getlasterror</a>.</p>
 </table>
 
 <h5>Description</h5>
-<p>The <strong>bind</strong> method is usually to assign a UDT socket a local address, including IP address and port number. If INADDR_ANY is used, a proper IP address will be used once 
-the UDT connection is set up. If 0 is used for the port, a randomly available port number will be used. The method <a href="sockname.htm">getsockname</a> can be used to retrieve this port 
+<p>The <strong>bind</strong> method is usually to assign a UDT socket a local address, including IP address and port number. If INADDR_ANY is used, a proper IP address will be used once
+the UDT connection is set up. If 0 is used for the port, a randomly available port number will be used. The method <a href="sockname.htm">getsockname</a> can be used to retrieve this port
 number.</p>
 <p>The second form of <strong>bind</strong> allows UDT to bind directly on an existing UDP socket. This is usefule for firewall traversing in certain situations: 1) a UDP socket is created and its address is learned from a name server, there is no need to close the UDP socket and open a UDT socket on the same address again; 2) for certain firewall, especially some on local system, the port mapping maybe changed or the &quot;hole&quot; may be closed when a UDP socket is closed and reopened, thus it is necessary to use the UDP socket directly in UDT. </p>
 <p>Use the second form of <strong>bind</strong> with caution, as it violates certain programming rules regarding code robustness. Once the UDP socket descriptor is passed to UDT, it MUST NOT be touched again. DO NOT use this unless you clearly understand how the related systems work. </p>
-<p>The <strong>bind</strong> call is necessary in all cases except for a socket to <a href="listen.htm">listen</a>. If <strong>bind</strong> is not called, UDT will automatically bind a 
+<p>The <strong>bind</strong> call is necessary in all cases except for a socket to <a href="listen.htm">listen</a>. If <strong>bind</strong> is not called, UDT will automatically bind a
 socket to a randomly available address when a connection is set up.</p>
-<p>By default, UDT allows to reuse existing UDP port for new UDT sockets, unless UDT_REUSEADDR is set to false. When UDT_REUSEADDR is false, UDT will create an 
-exclusive UDP port for this UDT socket. UDT_REUSEADDR must be called before <strong>bind</strong>. To reuse an existing UDT/UDP port, the new UDT socket must 
-explicitly <strong>bind</strong> to the port. If the port is already used by a UDT socket with UDT_REUSEADDR as false, the new bind will return error. If 0 is passed 
-as the port number, <strong>bind</strong> always creates a new port, no matter what value the UDT_REUSEADDR sets. </p> 
+<p>By default, UDT allows to reuse existing UDP port for new UDT sockets, unless UDT_REUSEADDR is set to false. When UDT_REUSEADDR is false, UDT will create an
+exclusive UDP port for this UDT socket. UDT_REUSEADDR must be called before <strong>bind</strong>. To reuse an existing UDT/UDP port, the new UDT socket must
+explicitly <strong>bind</strong> to the port. If the port is already used by a UDT socket with UDT_REUSEADDR as false, the new bind will return error. If 0 is passed
+as the port number, <strong>bind</strong> always creates a new port, no matter what value the UDT_REUSEADDR sets. </p>
 
 <h5>See Also</h5>
 <p><strong><a href="listen.htm">listen</a>, <a href="connect.htm">connect</a>, <a href="opt.htm">setsockopt</a>, <a href="opt.htm">getsockopt</a></strong></p>

@@ -29,7 +29,7 @@
 </dl>
 
 <h5>Return Value</h5>
-<p>If no error occurs, <b>socket</b> returns the new UDT socket descriptor; otherwise, it returns UDT::INVALID_SOCK and the error information can be retrieved by <a 
+<p>If no error occurs, <b>socket</b> returns the new UDT socket descriptor; otherwise, it returns UDT::INVALID_SOCK and the error information can be retrieved by <a
 href="error.htm">getlasterror</a>.</p>
 
 <table width="100%" border="1" cellpadding="1" cellspacing="0" bordercolor="#CCCCCC">
@@ -46,8 +46,8 @@ href="error.htm">getlasterror</a>.</p>
 </table>
 
 <h5>Description</h5>
-<p>The <strong>socket</strong> methods creates a new socket. The is no limits for the number of UDT sockets in one system, as long as there is enough system 
-resource. UDT supports both IPv4 and IPv6, which can be selected by the <i>af</i> parameter. On the other hand, two socket types are supports in UDT, i.e., 
+<p>The <strong>socket</strong> methods creates a new socket. The is no limits for the number of UDT sockets in one system, as long as there is enough system
+resource. UDT supports both IPv4 and IPv6, which can be selected by the <i>af</i> parameter. On the other hand, two socket types are supports in UDT, i.e.,
 SOCK_STREAM for data streaming and SOCK_DGRAM for messaging. Note that UDT sockets are connection oriented in all cases.</p>
 
 <h5>See Also</h5>

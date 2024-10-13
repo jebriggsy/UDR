@@ -12,7 +12,7 @@
 <h3><font color="#000080">Transfering Data using UDT</font></h3>
 <p>This section describes using UDT to transfer data in streaming mode. This is exactly the same as using traditional BSD socket.</p>
 
-<p>In streaming mode, neither a send or a recv call can guarantee that all data are sent or received in one call, because there is no boundary information in the data stream. Application 
+<p>In streaming mode, neither a send or a recv call can guarantee that all data are sent or received in one call, because there is no boundary information in the data stream. Application
 should use loops for both sending and receiving.</p>
 
 <p><strong>Example: send a data block (buf, size) using UDT.</strong></p>
@@ -49,9 +49,9 @@ should use loops for both sending and receiving.</p>
 </div>
 
 <h5>Blocking vs. Non-blocking</h5>
-<p>UDT supports both blocking and non-blocking mode. The above example demonstrated the blocking mode. In non-blocking mode, UDT::send and UDT::recv will return immediately if there is 
+<p>UDT supports both blocking and non-blocking mode. The above example demonstrated the blocking mode. In non-blocking mode, UDT::send and UDT::recv will return immediately if there is
 no buffer available. Usually, non-blocking calls are used together with accept.</p>
-<p>UDT also supports timed blocking IO with UDT_SNDTIMEO and UDT_RCVTIMEO. This is in the middle between complete blocking and complete non-blocking calls. Timed IO will block the 
+<p>UDT also supports timed blocking IO with UDT_SNDTIMEO and UDT_RCVTIMEO. This is in the middle between complete blocking and complete non-blocking calls. Timed IO will block the
 sending or receiving call for a limited period. This is sometimes useful if the application does not know if and when the peer side will send a message.</p>
 
 <p>&nbsp;</p>

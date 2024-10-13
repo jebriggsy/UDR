@@ -23,7 +23,7 @@
    <tt class="note1"><span class="style2">./doc</span>: UDT documentation</tt><br>
 <tt class="note1"><span class="style2">./win</span>: Visual C++ project files for Windows version of UDT</tt></p>
 
-<p>The library is in the original source code format without any installation tools, so installation is simply a make command. To make the C++ source code on different platform, the user 
+<p>The library is in the original source code format without any installation tools, so installation is simply a make command. To make the C++ source code on different platform, the user
 needs to explicitly tell <i>make</i> the current operating system and hardware architecture with the "-e" option (except for Windows).</p>
 <p>The available operating system options are: LINUX, BSD, and OSX. <br> The available options for hardware architecture are: IA32, IA64, POWERPC, and AMD64.</p>
 
@@ -31,18 +31,18 @@ needs to explicitly tell <i>make</i> the current operating system and hardware a
 
 <p class="style1">make -e os=XXX arch=YYY</p>
 
-<p>where XXX and YYY are one of the options above. Note that it is case sensitive. There is a default value for Linux on the IA32 architecture, so if UDT is compiled on it, simply use 
+<p>where XXX and YYY are one of the options above. Note that it is case sensitive. There is a default value for Linux on the IA32 architecture, so if UDT is compiled on it, simply use
   make.
 </p>
-  
+
   </p>On Windows, use the Visual Studio .Net project files at ./win directory. It requires Visual C++ 7.0 or above to compile. Windows XP or above is also required under the default setting.
-  <p>If other Windows compilers are used, you may need to create 
+  <p>If other Windows compilers are used, you may need to create
   your own Makefile or project files.  In particular, if you use Visual C++ 6.0 or your system is Windows 2000 or certain embeded Windows systems, please define LEGACY_WIN32 in your Makefile or project files. You may also need to download Windows platform SDK in order to get the &lt;wspiapi.h&gt; header file.</p>
-  <p>After a successful make, you can begin to use the UDT library. The (only) header file udt.h and the library libudt.a (depending on the target system, libudt.so, libudt.dylib, and udt.dll 
+  <p>After a successful make, you can begin to use the UDT library. The (only) header file udt.h and the library libudt.a (depending on the target system, libudt.so, libudt.dylib, and udt.dll
   may be available) are located in ./src directory.</p>
   Proper environment configuration should be set up before using UDT library. For example, if using libudt.so, the library path environment variable must be updated as:
   </p>
-  
+
   </p>
   export LD_LIBRARY_PATH=[location of libudt.so, e.g., ../src]:$LD_LIBRARY_PATH
   </p>

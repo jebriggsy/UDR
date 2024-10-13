@@ -3,23 +3,33 @@
 #   Copyright 2012 Laboratory for Advanced Computing at the University of Chicago
 #
 #   This file is part of UDR.
-# 
-#   Licensed under the Apache License, Version 2.0 (the "License"); 
-#   you may not use this file except in compliance with the License. 
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
 #
 #       http://www.apache.org/licenses/LICENSE-2.0
 #
-#   Unless required by applicable law or agreed to in writing, software 
-#   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
-#   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
-#   License for the specific language governing permissions and limitations 
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#   License for the specific language governing permissions and limitations
 #   under the License.
 
-import os, re, sys, pwd, grp, time
-import signal, optparse, subprocess, logging
+import grp
+import logging
+import optparse
+import os
+import pwd
+import re
+import signal
+import subprocess
+import sys
+import time
+
 import SocketServer
 from daemon import Daemon
+
 
 class UDRHandler(SocketServer.StreamRequestHandler):
     """
@@ -30,7 +40,7 @@ class UDRHandler(SocketServer.StreamRequestHandler):
         logging.info('New connection from %s' % self.client_address[0])
 
         #depends on the udr cmd having a newline at the end
-        #perhaps should add a timeout, or maybe none at all 
+        #perhaps should add a timeout, or maybe none at all
         line = self.rfile.readline().strip()
 
 # hllo
@@ -44,7 +54,7 @@ class UDRHandler(SocketServer.StreamRequestHandler):
             udr_cmd.append('-x')
             udr_cmd.append('--config')
             udr_cmd.append(self.server.params['rsyncd conf'])
-            
+
             if self.server.params['specify ip']:
                 udr_cmd.append('-i%s' % self.server.params['specify ip'])
 
@@ -112,9 +122,9 @@ class UDRServer(Daemon, object):
 
     def run(self):
         self.set_uid_gid()
-        self.config_logger()    
+        self.config_logger()
         SocketServer.TCPServer.allow_reuse_address = True
-        server = SocketServer.TCPServer((self.params['address'], int(self.params['server port'])), UDRHandler) 
+        server = SocketServer.TCPServer((self.params['address'], int(self.params['server port'])), UDRHandler)
         server.params = self.params
         server.rsync_params = self.rsync_params
         logging.debug('params: %s' % str(self.params))
@@ -163,7 +173,7 @@ class UDRServer(Daemon, object):
 
             if line.startswith('#'):
                 continue
-            
+
             paren_result = paren_re.match(line)
             if paren_result is not None:
                 curr_module = paren_result.group(1)
@@ -181,7 +191,7 @@ class UDRServer(Daemon, object):
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-    
+
         if 'log level' in self.params:
             logger.setLevel(getattr(logging, self.params['log level'].upper()))
         else:
@@ -204,6 +214,7 @@ def main():
 
     daemon = UDRServer(configfile, options.verbose)
 
+    # fmt: off
     if len(sys.argv) > 1:
         if 'start' == sys.argv[-1]:
             if not options.silent:
@@ -230,6 +241,7 @@ def main():
     else:
         print "usage: %s [options] start|stop|restart|foreground" % sys.argv[0]
         sys.exit(2)
+    #fmt: on
 
 if __name__ == '__main__':
     main()

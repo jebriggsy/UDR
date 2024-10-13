@@ -29,7 +29,7 @@
 </dl>
 
 <h5>Return Value</h5>
-<p>On success, <strong>getlasterror</strong> returns 0 and the local address information is stored in <i>name</i>; otherwise it returns UDT::ERROR and the specific error information can be 
+<p>On success, <strong>getlasterror</strong> returns 0 and the local address information is stored in <i>name</i>; otherwise it returns UDT::ERROR and the specific error information can be
 retrieved using <a href="error.htm">getlasterror</a>.</p>
 
 <table width="100%" border="1" cellpadding="1" cellspacing="0" bordercolor="#CCCCCC">
@@ -56,7 +56,7 @@ retrieved using <a href="error.htm">getlasterror</a>.</p>
 </table>
 
 <h5>Description</h5>
-<p>The <strong>getsockname</strong> retrieves the local address associated with the socket. The UDT socket must be bound explicitly (via <strong>bind</strong>) or implicitly (via 
+<p>The <strong>getsockname</strong> retrieves the local address associated with the socket. The UDT socket must be bound explicitly (via <strong>bind</strong>) or implicitly (via
 <strong>connect</strong>), otherwise this method will fail because there is no meaningful address bound to the socket.</p>
 <p>If <strong>getsockname</strong> is called after an explicit <strong>bind</strong>, but before <strong>connect</strong>, the IP address returned will be exactly the IP address that is used for <strong>bind</strong> and it may be 0.0.0.0 if ADDR_ANY is used. If <strong>getsockname</strong> is called after <strong>connect</strong>, the IP address returned will be the address that the peer socket sees. In the case when there is a proxy (e.g., NAT), the IP address returned will be the translated address by the proxy, but not a local address. If there is no proxy, the IP address returned will be a local address. In either case, the port number is local (i.e, not the translated proxy port).</p>
 <p>Because UDP is connection-less, using <u>getsockname</u> on a UDP port will almost always return 0.0.0.0 as IP address (unless it is bound to an explicit IP) . As a connection oriented protocol, UDT will return a meaningful IP address by <strong>getsockname</strong> if there is no proxy translation exist.</p>

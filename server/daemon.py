@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 
-import sys, os, time, atexit
+import atexit
+import os
+import sys
+import time
 from signal import SIGTERM
+
 
 class Daemon:
     """
     A generic daemon class, based on http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/
-   
+
     Usage: subclass the Daemon class and override the run() method
     """
     def __init__(self, pidfile, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
@@ -14,7 +18,7 @@ class Daemon:
         self.stdout = stdout
         self.stderr = stderr
         self.pidfile = pidfile
-   
+
     def daemonize(self):
         """
         do the UNIX double-fork magic, see Stevens' "Advanced
@@ -26,9 +30,11 @@ class Daemon:
                 if pid > 0:
                         # exit first parent
                         sys.exit(0)
-        except OSError, e:
+        # fmt: off
+        except OSError, e:  # fmt: skip
                 sys.stderr.write("[FAIL] fork #1: %d (%s)\n" % (e.errno, e.strerror))
                 sys.exit(1)
+        # fmt: on
 
         # decouple from parent environment
         os.chdir("/")
@@ -50,7 +56,7 @@ class Daemon:
         file(self.pidfile,'w+').write("%s\n" % pid)
 
         atexit.register(self.delpid)
-          
+
         # redirect standard file descriptors
         sys.stdout.flush()
         sys.stderr.flush()
@@ -60,7 +66,7 @@ class Daemon:
         os.dup2(si.fileno(), sys.stdin.fileno())
         os.dup2(so.fileno(), sys.stdout.fileno())
         os.dup2(se.fileno(), sys.stderr.fileno())
-   
+
     def delpid(self):
         os.remove(self.pidfile)
 
@@ -80,7 +86,7 @@ class Daemon:
             message = "[FAIL] pidfile %s already exists. Daemon already running?\n"
             sys.stderr.write(message % self.pidfile)
             sys.exit(1)
-       
+
         # Start the daemon
         self.daemonize()
         self.run()
@@ -102,7 +108,7 @@ class Daemon:
             sys.stderr.write(message % self.pidfile)
             return # not an error in a restart
 
-        # Try killing the daemon process       
+        # Try killing the daemon process
         try:
             while 1:
                 os.kill(pid, SIGTERM)

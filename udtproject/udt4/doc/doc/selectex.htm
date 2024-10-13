@@ -40,8 +40,8 @@
 </dl>
 
 <h5>Return Value</h5>
-<p>If any of the read, write, or except group is not empty, <strong>selectEx</strong> returns the number of UDT sockets that are read for read/write or are broken/closed. If no socket is ready before timeout, zero is 
-returned. If there is any error, UDT::ERROR is returned and the specific error information can be retrieved using <a href="error.htm">getlasterror</a>. The <i>readfds,writefds</i> and/or 
+<p>If any of the read, write, or except group is not empty, <strong>selectEx</strong> returns the number of UDT sockets that are read for read/write or are broken/closed. If no socket is ready before timeout, zero is
+returned. If there is any error, UDT::ERROR is returned and the specific error information can be retrieved using <a href="error.htm">getlasterror</a>. The <i>readfds,writefds</i> and/or
 <em>exceptfds</em> will be updated to contain the ready sockets.</p>
 
 

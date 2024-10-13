@@ -40,6 +40,7 @@ DIR = $(shell pwd)
 
 APP = appserver appclient sendfile recvfile test
 
+.PHONY: all
 all: $(APP)
 
 %.o: %.cpp
@@ -56,8 +57,11 @@ recvfile: recvfile.o
 test: test.o
 	$(C++) $^ -o $@ $(LDFLAGS)
 
+.PHONY: clean
 clean:
 	rm -f *.o $(APP)
+
+.PHONY: test
 
 install:
 	export PATH=$(DIR):$$PATH

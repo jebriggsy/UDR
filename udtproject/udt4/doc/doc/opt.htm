@@ -169,7 +169,7 @@
 </dl>
 
 <h5>Return Value</h5>
-<p>On success, 0 is returned and proper UDT option is set or read; otherwise UDT::ERROR is returned and the specific error information can be retrieved using <a 
+<p>On success, 0 is returned and proper UDT option is set or read; otherwise UDT::ERROR is returned and the specific error information can be retrieved using <a
 href="error.htm">getlasterror</a>.</p>
 
 <table width="100%" border="1" cellpadding="2" cellspacing="0" bordercolor="#CCCCCC">
@@ -201,8 +201,8 @@ href="error.htm">getlasterror</a>.</p>
 </table>
 
 <h5>Description</h5>
-<p>the <strong>setsockopt</strong> method sets the UDT option <i>optName</i> with the value of <i>optval</i>. The parameter of <i>optlen</i> is checked to verify the goodness of the 
-option value. Not all options can be set at any state of UDT. In fact, most options must be set before <strong>bind</strong> or <strong>connect</strong> is called, because these values 
+<p>the <strong>setsockopt</strong> method sets the UDT option <i>optName</i> with the value of <i>optval</i>. The parameter of <i>optlen</i> is checked to verify the goodness of the
+option value. Not all options can be set at any state of UDT. In fact, most options must be set before <strong>bind</strong> or <strong>connect</strong> is called, because these values
 are necessary to initialize certain data structures when a UDT connection is created.</p>
 
 <p>The <strong>getsockopt</strong> method reads the current option value. The value is written into the buffer pointed by <i>optval</i> and the length is returned in <i>optlen</i>.</p>

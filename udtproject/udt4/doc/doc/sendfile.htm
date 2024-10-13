@@ -35,7 +35,7 @@
 </dl>
 
 <h5>Return Value</h5>
-<p>On success, <b>sendfile</b> returns the actual size of data that has been sent. Otherwise UDT::ERROR is returned and specific error information can be retrieved by 
+<p>On success, <b>sendfile</b> returns the actual size of data that has been sent. Otherwise UDT::ERROR is returned and specific error information can be retrieved by
 <a href="error.htm">getlasterror</a>.</p>
 
 <table width="100%" border="1" cellpadding="1" cellspacing="0" bordercolor="#CCCCCC">
@@ -78,7 +78,7 @@
 
 <h5>Description</h5>
 <p>The <strong>sendfile</strong> method sends certain amount of out of a local file. It is always in blocking mode an neither UDT_SNDSYN nor UDT_SNDTIMEO affects this method. However, the <strong>sendfile</strong> method has a streaming semantics same as <a href="send.htm"><strong>send</strong></a>. </p>
-<p>Note that <strong>sendfile</strong> does NOT nessesarily require <strong><a href="recvfile.htm">recvfile</a></strong> at the peer side. Sendfile/recvfile and send/recv are orthogonal 
+<p>Note that <strong>sendfile</strong> does NOT nessesarily require <strong><a href="recvfile.htm">recvfile</a></strong> at the peer side. Sendfile/recvfile and send/recv are orthogonal
 UDT methods.</p>
 
 <h5>See Also</h5>

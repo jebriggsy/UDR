@@ -29,7 +29,7 @@
 </dl>
 
 <h5>Return Value</h5>
-<p>On success, <b>recvmsg</b> returns the actual size of received message. Otherwise UDT::ERROR is returned and specific error information can be retrieved by <a 
+<p>On success, <b>recvmsg</b> returns the actual size of received message. Otherwise UDT::ERROR is returned and specific error information can be retrieved by <a
 href="error.htm">getlasterror</a>. If UDT_RCVTIMEO is set to a positive value, zero will be returned if no message is received before the timer expires.</p>
 
 <table width="100%" border="1" cellpadding="2" cellspacing="0" bordercolor="#CCCCCC">
@@ -71,13 +71,13 @@ href="error.htm">getlasterror</a>. If UDT_RCVTIMEO is set to a positive value, z
 </table>
 
 <h5>Description</h5>
-<p>The <strong>recvmsg</strong> method reads a message from the protocol buffer. The UDT socket must be in SOCK_DGRAM mode in order to send or receive messages. Message is the minimum 
-data unit in this situation. Each <strong>recvmsg</strong> will read no more than one message, even if the message is smaller than the size of <i>buf</i> and there 
-are more messages available. On the other hand, if the <i>buf</i> is not enough to hold the first message, only part of the message will be copied into the buffer, 
+<p>The <strong>recvmsg</strong> method reads a message from the protocol buffer. The UDT socket must be in SOCK_DGRAM mode in order to send or receive messages. Message is the minimum
+data unit in this situation. Each <strong>recvmsg</strong> will read no more than one message, even if the message is smaller than the size of <i>buf</i> and there
+are more messages available. On the other hand, if the <i>buf</i> is not enough to hold the first message, only part of the message will be copied into the buffer,
 but the message will still be discarded after this <strong>recvmsg</strong> call.</p>
-<p>In blocking mode (default), <strong>recvmsg</strong> waits until there is a valid message received into the receiver buffer. In non-blocking mode, 
+<p>In blocking mode (default), <strong>recvmsg</strong> waits until there is a valid message received into the receiver buffer. In non-blocking mode,
 <strong>recvmsg</strong></strong> returns immediately and returns error if no message available.</p>
-<p>If UDT_RCVTIMEO is set and the socket is in blocking mode, <strong>recvmsg</strong> only waits a limited time specified by UDT_RCVTIMEO option. If there is still 
+<p>If UDT_RCVTIMEO is set and the socket is in blocking mode, <strong>recvmsg</strong> only waits a limited time specified by UDT_RCVTIMEO option. If there is still
 no message available when the timer expires, error will be returned. UDT_RCVTIMEO has no effect for non-blocking socket.</p>
 
 <h5>See Also</h5>

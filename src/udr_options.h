@@ -18,86 +18,85 @@ and limitations under the License.
 
 #ifndef UDR_OPTIONS_H
 #define UDR_OPTIONS_H
+#include <fstream>
+#include <iostream>
+#include <limits.h>
+#include <netdb.h>
 #include <string>
 #include <vector>
-#include <iostream>
-#include <fstream>
-#include <netdb.h>
-#include <limits.h>
 
 #include <udt.h>
 
 typedef std::vector<std::string> udr_args;
 
-struct UDR_Options{
-    UDR_Options();
-    int get_options(int argc, char * argv[]);
-    void get_host_username();
-    int parse_port(const char *arg, const char *argname);
-    int parse_int(const char *arg, const char *argname);
-    std::ostream &err() ;
-    std::ostream &err(int errnum);
-    std::ostream &err(UDT::ERRORINFO &);
-    std::ostream &verb();
-    std::ostream &dbg();
-    std::ostream &dbg2();
-    int get_verbosity() const {return verbose;}
-    bool is_verbose() const {return verbose >= 1;}
-    bool is_debug() const {return verbose >= 2;}
-    bool is_debug2() const {return verbose >= 3;}
+struct UDR_Options {
+  UDR_Options();
+  int get_options(int argc, char *argv[]);
+  void get_host_username();
+  int parse_port(const char *arg, const char *argname);
+  int parse_int(const char *arg, const char *argname);
+  std::ostream &err();
+  std::ostream &err(int errnum);
+  std::ostream &err(UDT::ERRORINFO &);
+  std::ostream &verb();
+  std::ostream &dbg();
+  std::ostream &dbg2();
+  int get_verbosity() const { return verbose; }
+  bool is_verbose() const { return verbose >= 1; }
+  bool is_debug() const { return verbose >= 2; }
+  bool is_debug2() const { return verbose >= 3; }
 
-    // The port UDR will attempt the initial SSH connection over
-    int ssh_port;
-    int start_port;
-    int end_port;
-    int timeout;
-    int bandwidthcap;
+  // The port UDR will attempt the initial SSH connection over
+  int ssh_port;
+  int start_port;
+  int end_port;
+  int timeout;
+  int bandwidthcap;
 
-    bool tflag;
-    bool sflag;
-    int verbose;
-    bool encryption;
-    bool version_flag;
-    bool server_connect;
+  bool tflag;
+  bool sflag;
+  int verbose;
+  bool encryption;
+  bool version_flag;
+  bool server_connect;
 
-    std::string udr_program_src;
-    std::string udr_program_dest;
-    std::string ssh_program;
-    std::string rsync_program;
-    std::string rsync_timeout;
-    std::string shell_program;
+  std::string udr_program_src;
+  std::string udr_program_dest;
+  std::string ssh_program;
+  std::string rsync_program;
+  std::string rsync_timeout;
+  std::string shell_program;
 
-    std::string key_base_filename;
-    std::string key_filename;
+  std::string key_base_filename;
+  std::string key_filename;
 
-    std::string host;
-    int port_num;
-    std::string username;
-    std::string which_process = "[udr ?]";
-    std::string version;
-    std::string server_dir;
-    int server_port;
+  std::string host;
+  int port_num;
+  std::string username;
+  std::string which_process = "[udr ?]";
+  std::string version;
+  std::string server_dir;
+  int server_port;
 
-    std::string server_config;
+  std::string server_config;
 
-    std::string encryption_type;
+  std::string encryption_type;
 
-    std::string specify_ip;
+  std::string specify_ip;
 
-    uid_t rsync_uid;
-    gid_t rsync_gid;
+  uid_t rsync_uid;
+  gid_t rsync_gid;
 
-    // the rsync part of the command ine, starting with the rsync cmd itself.
-    std::vector<std::string> args;  // args uptil rsync
-    std::vector<std::string> extra_args; // rsync and following args
+  // the rsync part of the command ine, starting with the rsync cmd itself.
+  std::vector<std::string> args;       // args uptil rsync
+  std::vector<std::string> extra_args; // rsync and following args
 private:
-    std::ofstream nullstream;
-    std::ofstream logstream;
-    std::ostream *mycerr = &std::cerr;
+  std::ofstream nullstream;
+  std::ofstream logstream;
+  std::ostream *mycerr = &std::cerr;
 };
 
-
-void usage(bool do_exit=true);
+void usage(bool do_exit = true);
 
 // the global options
 extern UDR_Options goptions;

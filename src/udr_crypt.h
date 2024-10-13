@@ -24,51 +24,48 @@ and limitations under the License.
 #include "udr_options.h"
 
 #include <openssl/evp.h>
-#include <vector>
 #include <string>
+#include <vector>
 
-class udr_crypt
-{
+class udr_crypt {
 public:
+  enum crypt_dir_t { ENCRYPT = 1, DECRYPT = 0 };
 
-    enum crypt_dir_t {
-        ENCRYPT = 1,
-        DECRYPT = 0
-    };
+  typedef std::vector<unsigned char> key_t;
+  typedef void *cipher_t;
 
-    typedef std::vector<unsigned char> key_t;
-    typedef void * cipher_t;
+  udr_crypt(crypt_dir_t dir, const std::string &encryption_type,
+            const key_t &key);
+  udr_crypt(crypt_dir_t dir, const std::string &encryption_type,
+            const std::string &password);
+  ~udr_crypt();
 
-    udr_crypt(crypt_dir_t dir, const std::string &encryption_type, const key_t &key);
-    udr_crypt(crypt_dir_t dir, const std::string &encryption_type, const std::string &password);
-    ~udr_crypt();
+  bool is_valid() { return valid; }
+  static cipher_t get_cipher(const std::string &encryption_type);
+  static size_t get_keylen(cipher_t);
 
-    bool is_valid() {return valid;}
-    static cipher_t get_cipher(const std::string &encryption_type);
-    static size_t get_keylen(cipher_t);
-    
-    int encrypt(char *in, char *out, int len);
+  int encrypt(char *in, char *out, int len);
 
-    // encoding/decoding binary data to ascii
-    static key_t rand_bytes(int num);
-    static std::string encode_64(const key_t &bytes);
-    static std::string encode_hex(const key_t &bytes);
-    static key_t decode_64(const std::string &);
-    static key_t decode_hex(const std::string &);
-    static key_t decode(const std::string &);
+  // encoding/decoding binary data to ascii
+  static key_t rand_bytes(int num);
+  static std::string encode_64(const key_t &bytes);
+  static std::string encode_hex(const key_t &bytes);
+  static key_t decode_64(const std::string &);
+  static key_t decode_hex(const std::string &);
+  static key_t decode(const std::string &);
 
 private:
-    bool init(const std::string &encryption_type, const key_t &key);
-   
+  bool init(const std::string &encryption_type, const key_t &key);
+
 private:
-    const crypt_dir_t direction;
-    bool valid = false;
-    
-    // EVP stuff
+  const crypt_dir_t direction;
+  bool valid = false;
+
+  // EVP stuff
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-    EVP_CIPHER_CTX ctx;
+  EVP_CIPHER_CTX ctx;
 #endif
-    EVP_CIPHER_CTX *ctxp = nullptr;
+  EVP_CIPHER_CTX *ctxp = nullptr;
 };
 
 #endif

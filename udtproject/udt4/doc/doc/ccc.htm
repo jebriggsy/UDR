@@ -48,7 +48,7 @@
 
 <p>void <strong>init</strong>()</p>
 
-<p>This is the callback function to be called at the start of a UDT connection. It can be used to initialize the packet sending period, initial sending rate, etc. It can also be used to 
+<p>This is the callback function to be called at the start of a UDT connection. It can be used to initialize the packet sending period, initial sending rate, etc. It can also be used to
 start timer thread. It is RECOMMENDED that the initializations are done in this method, rather than in the constructor.</p>
 
 <p>void <strong>close</strong>()</p>
@@ -61,7 +61,7 @@ start timer thread. It is RECOMMENDED that the initializations are done in this 
 
 <p>void <strong>onLoss</strong>(losslist, size)</p>
 
-<p>This callback function is called when the sender detects a loss event, e.g., by duplicate ACK or explicit loss report. losslist is the packet sequence numbers of the lost packets and size 
+<p>This callback function is called when the sender detects a loss event, e.g., by duplicate ACK or explicit loss report. losslist is the packet sequence numbers of the lost packets and size
 the length of the loss list.</p>
 
 <p>void <strong>onTimeout</strong>()</p>
@@ -70,7 +70,7 @@ the length of the loss list.</p>
 
 <p>void <strong>onPktSent</strong>(pkt)</p>
 
-<p>This callback function is called when a data packet is sent. All the packet information can be accessed though the pkt pointer. This callback function is useful to record the packet 
+<p>This callback function is called when a data packet is sent. All the packet information can be accessed though the pkt pointer. This callback function is useful to record the packet
 timestamp in a delay-based approach and compute RTT in onACK(), because UDT does not compute RTT for all packets.</p>
 
 <p>See UDT specification and ./src/packet.cpp for the packet structure.</p>
@@ -85,12 +85,12 @@ timestamp in a delay-based approach and compute RTT in onACK(), because UDT does
 
 <p>void <strong>setACKTimer</strong>(msINT)</p>
 
-<p>This method is used to enable timer-based acknowledging and set the ACK timer. It should be called by an inherited class (for example, in init()) if the new congestion control need 
+<p>This method is used to enable timer-based acknowledging and set the ACK timer. It should be called by an inherited class (for example, in init()) if the new congestion control need
 timer-based acknowledging. msINT is the ACK timer in millisecond. Note that the highest precision of the ACK timer depends on the specific platform, and cannot exceed 1 millisecond.</p>
 
 <p>void <strong>setACKInterval</strong>(pktINT)</p>
 
-<p>This method is used to configure the number of packets to be received before an ACK is sent. This is the default acknowledging method and by default every packet will be acknowledged. 
+<p>This method is used to configure the number of packets to be received before an ACK is sent. This is the default acknowledging method and by default every packet will be acknowledged.
 Packet-based and timer-based acknowledging are exclusive. pktINT is the packet interval.</p>
 
 <p>void <strong>setRTO</strong>(usRTO)</p>
@@ -99,7 +99,7 @@ Packet-based and timer-based acknowledging are exclusive. pktINT is the packet i
 
 <p>void <strong>sendCustomMsg</strong>(pkt)</p>
 
-<p>The method can be used to send a user defined control message. The control message pkt must conform to the packet format defined in ./src/packet.cpp. IMPORTANT: This message is sent 
+<p>The method can be used to send a user defined control message. The control message pkt must conform to the packet format defined in ./src/packet.cpp. IMPORTANT: This message is sent
 through UDP; therefore, it is not guaranteed to be sent successfully nor in order.</p>
 
 <p>const UDT::TRACEINFO* <strong>getPerfInfo</strong>()</p>

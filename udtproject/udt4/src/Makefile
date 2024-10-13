@@ -33,6 +33,7 @@ endif
 OBJS = api.o buffer.o cache.o ccc.o channel.o common.o core.o epoll.o list.o md5.o packet.o queue.o window.o
 DIR = $(shell pwd)
 
+.PHONY: all
 all: libudt.so libudt.a udt
 
 %.o: %.cpp %.h udt.h
@@ -51,8 +52,11 @@ libudt.a: $(OBJS)
 udt:
 	cp udt.h udt
 
+.PHONY: clean
 clean:
 	rm -f *.o *.so *.dylib *.a udt
+
+.PHONY: test
 
 install:
 	export LD_LIBRARY_PATH=$(DIR):$$LD_LIBRARY_PATH

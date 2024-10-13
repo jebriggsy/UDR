@@ -14,7 +14,7 @@ CPPFLAGS = -D$(os) -I../udtproject/udt4/src -DDEBUG
 LDFLAGS = -g
 
 ifeq ($(arch), IA32)
-	CPPFLAGS += -DIA32 
+	CPPFLAGS += -DIA32
 	# CXXFLAGS += -mcpu=pentiumpro -march=pentiumpro -mmmx -msse
 endif
 
@@ -32,6 +32,8 @@ endif
 
 LDFLAGS += -L../src
 LDLIBS = ../udtproject/udt4/src/libudt.a -lstdc++ -lpthread -lm -lssl -lcrypto
+
+.PHONY: test
 
 ifeq ($(os), UNIX)
 	LDLIBS += -lsocket
@@ -52,20 +54,23 @@ DIR = $(shell pwd)
 APP = udr
 
 
-all: $(APP)
+.PHONY: all
+all: ${APP}
 
 udr.cpp udr_log.cpp: version.h
 version.h:
 	./version.sh
 
 udr: udr.o udr_util.o udr_options.o udr_rsh.o udr_crypt.o udr_exception.o udr_process.o
-	$(LINK.o) $^ $(LDLIBS) -o $@ 
+	$(LINK.o) $^ $(LDLIBS) -o $@
 
+.PHONY: clean
 clean:
 	rm -f *.o $(APP)
 	rm -rf $(DEPDIR)
 	rm -f version.h
 
+.PHONY: install
 install:
 	export PATH=$(DIR):$$PATH
 

@@ -16,12 +16,12 @@ if ((top.name != UniqueID) && (navigator.appName == "Netscape") && (navigator.ap
 {
 	opts = "location,menubar,status,resizable,toolbar,scrollbars";
 	remote = window.open("index.htm"+ self.location.hash, UniqueID, opts);
-	
+
 	if (remote != null)
-		setTimeout("self.close();", 10); 
+		setTimeout("self.close();", 10);
 }
 
-if (top.frames.length > 0) 
+if (top.frames.length > 0)
 { // ensure full-screen
    if (window.stop)
 	window.stop();
